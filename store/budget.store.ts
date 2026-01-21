@@ -1,32 +1,25 @@
 "use client";
 
-import { useAppStore } from "./app-store";
-import type { AppData, BudgetMonthData } from "./app-store";
-import { DEFAULT_BUDGET_MONTH } from "./app-store";
+import {
+  DEFAULT_BUDGET_MONTH,
+  type AppData,
+  type BudgetMonthData,
+  useAppStore,
+} from "@/store/app-store";
 
-function ensureMonthShape(month?: BudgetMonthData | null): BudgetMonthData {
-  const m = month && typeof month === "object" ? (month as any) : {};
-
+function createDefaultMonth(): BudgetMonthData {
   return {
-    incomes: Array.isArray(m.incomes)
-      ? m.incomes
-      : DEFAULT_BUDGET_MONTH.incomes,
-    fixedBills: Array.isArray(m.fixedBills) ? m.fixedBills : [],
-    cardExpenses: Array.isArray(m.cardExpenses) ? m.cardExpenses : [],
-    invested:
-      m.invested && typeof m.invested === "object"
-        ? {
-            amount:
-              typeof m.invested.amount === "string" ? m.invested.amount : "",
-          }
-        : { amount: "" },
+    incomes: [],
+    fixedBills: [],
+    cardExpenses: [],
+    invested: { amount: "" },
   };
 }
 
 export function useBudgetStore() {
-  const { data, update, currentMonthKey } = useAppStore();
+  const { data, update } = useAppStore();
 
-  const selectedMonthKey = data.budget.selectedMonthKey ?? currentMonthKey;
+  const selectedMonthKey = data.budget.selectedMonthKey;
 
   const setSelectedMonthKey = (monthKey: string) => {
     update((prev: AppData) => ({
@@ -39,7 +32,7 @@ export function useBudgetStore() {
   };
 
   const getMonth = (monthKey: string): BudgetMonthData => {
-    return ensureMonthShape(data.budget.months[monthKey]);
+    return data.budget.months[monthKey] ?? DEFAULT_BUDGET_MONTH;
   };
 
   const updateMonth = (
@@ -47,17 +40,16 @@ export function useBudgetStore() {
     updater: (prev: BudgetMonthData) => BudgetMonthData,
   ) => {
     update((prev: AppData) => {
-      const prevBudget = prev.budget;
-      const prevMonth = ensureMonthShape(prevBudget.months[monthKey]);
+      const current = prev.budget.months[monthKey] ?? createDefaultMonth();
 
-      const nextMonth = ensureMonthShape(updater(prevMonth));
+      const nextMonth = updater(current);
 
       return {
         ...prev,
         budget: {
-          ...prevBudget,
+          ...prev.budget,
           months: {
-            ...prevBudget.months,
+            ...prev.budget.months,
             [monthKey]: nextMonth,
           },
         },
@@ -65,5 +57,10 @@ export function useBudgetStore() {
     });
   };
 
-  return { selectedMonthKey, setSelectedMonthKey, getMonth, updateMonth };
+  return {
+    selectedMonthKey,
+    setSelectedMonthKey,
+    getMonth,
+    updateMonth,
+  };
 }
