@@ -34,6 +34,12 @@ function isBudgetCategory(v: unknown): v is BudgetCategory {
   );
 }
 
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(v: unknown): v is UnknownRecord {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
 export type BudgetMonthData = {
   incomes: Array<{ id: string; label: string; amount: string }>;
   fixedBills: Array<{ id: string; description: string; amount: string }>;
@@ -42,7 +48,6 @@ export type BudgetMonthData = {
     category: BudgetCategory | "";
     amount: string;
   }>;
-
   invested: { amount: string };
 };
 
@@ -70,46 +75,90 @@ export const DEFAULT_BUDGET_MONTH: BudgetMonthData = {
 const DEFAULT_DATA: AppData = {
   piggyBank: {},
   budget: { selectedMonthKey: undefined, months: {} },
-  meta: { version: VERSION, updatedAt: new Date().toISOString() },
+  meta: { version: VERSION, updatedAt: "" },
 };
 
+function isOldDefaultIncomeRow(
+  incomes: Array<{ label: string; amount: string }>,
+) {
+  return (
+    incomes.length === 1 &&
+    incomes[0]?.label === "Salário" &&
+    (incomes[0]?.amount ?? "").trim() === ""
+  );
+}
+
 function normalizeMonthData(input: unknown): BudgetMonthData {
-  const obj = input && typeof input === "object" ? (input as any) : {};
+  const obj: UnknownRecord = isRecord(input) ? input : {};
 
-  const invested =
-    obj.invested && typeof obj.invested === "object"
-      ? {
-          amount:
-            typeof obj.invested.amount === "string" ? obj.invested.amount : "",
-        }
-      : { amount: "" };
+  const investedRaw = isRecord(obj["invested"])
+    ? (obj["invested"] as UnknownRecord)
+    : null;
+  const invested = {
+    amount:
+      typeof investedRaw?.["amount"] === "string"
+        ? (investedRaw["amount"] as string)
+        : "",
+  };
 
-  const fixedBills = Array.isArray(obj.fixedBills)
-    ? obj.fixedBills.map((it: any, idx: number) => ({
-        id: typeof it?.id === "string" ? it.id : `fixed-${idx + 1}`,
-        description: typeof it?.description === "string" ? it.description : "",
-        amount: typeof it?.amount === "string" ? it.amount : "",
-      }))
+  const fixedBillsRaw = Array.isArray(obj["fixedBills"])
+    ? obj["fixedBills"]
     : [];
+  const fixedBills = fixedBillsRaw.map((it, idx) => {
+    const row: UnknownRecord = isRecord(it) ? it : {};
+    return {
+      id:
+        typeof row["id"] === "string"
+          ? (row["id"] as string)
+          : `fixed-${idx + 1}`,
+      description:
+        typeof row["description"] === "string"
+          ? (row["description"] as string)
+          : "",
+      amount:
+        typeof row["amount"] === "string" ? (row["amount"] as string) : "",
+    };
+  });
 
-  const cardExpenses = Array.isArray(obj.cardExpenses)
-    ? obj.cardExpenses.map((it: any, idx: number) => ({
-        id: typeof it?.id === "string" ? it.id : `card-${idx + 1}`,
-        category: isBudgetCategory(it?.category) ? it.category : "Mercado",
-        amount: typeof it?.amount === "string" ? it.amount : "",
-      }))
-    : [];
+  const cardRaw = Array.isArray(obj["cardExpenses"]) ? obj["cardExpenses"] : [];
+  const cardExpenses = cardRaw.map((it, idx) => {
+    const row: UnknownRecord = isRecord(it) ? it : {};
+    const rawCat = row["category"];
 
-  // ✅ novo formato: incomes[]
-  if (Array.isArray(obj.incomes)) {
-    const incomes = obj.incomes.map((it: any, idx: number) => ({
-      id: typeof it?.id === "string" ? it.id : `income-${idx + 1}`,
-      label: typeof it?.label === "string" ? it.label : "",
-      amount: typeof it?.amount === "string" ? it.amount : "",
-    }));
+    const category: BudgetCategory | "" =
+      rawCat === "" ? "" : isBudgetCategory(rawCat) ? rawCat : "";
 
     return {
-      incomes: incomes.length ? incomes : DEFAULT_BUDGET_MONTH.incomes,
+      id:
+        typeof row["id"] === "string"
+          ? (row["id"] as string)
+          : `card-${idx + 1}`,
+      category,
+      amount:
+        typeof row["amount"] === "string" ? (row["amount"] as string) : "",
+    };
+  });
+
+  // ✅ novo formato: incomes[]
+  const incomesRaw = obj["incomes"];
+  if (Array.isArray(incomesRaw)) {
+    const incomes = incomesRaw.map((it, idx) => {
+      const row: UnknownRecord = isRecord(it) ? it : {};
+      return {
+        id:
+          typeof row["id"] === "string"
+            ? (row["id"] as string)
+            : `income-${idx + 1}`,
+        label: typeof row["label"] === "string" ? (row["label"] as string) : "",
+        amount:
+          typeof row["amount"] === "string" ? (row["amount"] as string) : "",
+      };
+    });
+
+    const incomesNormalized = isOldDefaultIncomeRow(incomes) ? [] : incomes;
+
+    return {
+      incomes: incomesNormalized,
       fixedBills,
       cardExpenses,
       invested,
@@ -117,67 +166,84 @@ function normalizeMonthData(input: unknown): BudgetMonthData {
   }
 
   // ✅ legado: income {label, amount}
-  const legacyIncome =
-    obj.income && typeof obj.income === "object" ? obj.income : null;
-  const incomes = legacyIncome
+  const legacyIncomeRaw = isRecord(obj["income"])
+    ? (obj["income"] as UnknownRecord)
+    : null;
+
+  const legacyAsArray = legacyIncomeRaw
     ? [
         {
           id: "income-1",
           label:
-            typeof legacyIncome.label === "string"
-              ? legacyIncome.label
-              : "Salário",
+            typeof legacyIncomeRaw["label"] === "string"
+              ? (legacyIncomeRaw["label"] as string)
+              : "",
           amount:
-            typeof legacyIncome.amount === "string" ? legacyIncome.amount : "",
+            typeof legacyIncomeRaw["amount"] === "string"
+              ? (legacyIncomeRaw["amount"] as string)
+              : "",
         },
       ]
-    : DEFAULT_BUDGET_MONTH.incomes;
+    : [];
 
-  return { incomes, fixedBills, cardExpenses, invested };
+  const incomesNormalized = isOldDefaultIncomeRow(legacyAsArray)
+    ? []
+    : legacyAsArray;
+
+  return {
+    incomes: incomesNormalized,
+    fixedBills,
+    cardExpenses,
+    invested,
+  };
 }
 
 function safeParse(raw: string | null): AppData | null {
   if (!raw) return null;
 
   try {
-    const parsed = JSON.parse(raw) as Partial<AppData> | null;
-    if (!parsed || typeof parsed !== "object") return null;
-    if (!parsed.meta || parsed.meta.version !== VERSION) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isRecord(parsed)) return null;
 
-    const budgetRaw =
-      parsed.budget && typeof parsed.budget === "object"
-        ? (parsed.budget as any)
-        : undefined;
+    const meta = isRecord(parsed["meta"])
+      ? (parsed["meta"] as UnknownRecord)
+      : null;
+    if (!meta || meta["version"] !== VERSION) return null;
 
+    const budgetRaw = isRecord(parsed["budget"])
+      ? (parsed["budget"] as UnknownRecord)
+      : null;
     const monthsRaw =
-      budgetRaw?.months && typeof budgetRaw.months === "object"
-        ? (budgetRaw.months as Record<string, unknown>)
+      budgetRaw && isRecord(budgetRaw["months"])
+        ? (budgetRaw["months"] as UnknownRecord)
         : {};
 
     const months = Object.fromEntries(
       Object.entries(monthsRaw).map(([k, v]) => [k, normalizeMonthData(v)]),
     ) as Record<string, BudgetMonthData>;
 
-    const piggyBank =
-      parsed.piggyBank && typeof parsed.piggyBank === "object"
-        ? (parsed.piggyBank as Record<string, string>)
-        : {};
+    const piggyBankRaw = isRecord(parsed["piggyBank"])
+      ? (parsed["piggyBank"] as UnknownRecord)
+      : {};
+    const piggyBank: Record<string, string> = Object.fromEntries(
+      Object.entries(piggyBankRaw).filter(([, v]) => typeof v === "string"),
+    ) as Record<string, string>;
 
     return {
       piggyBank,
       budget: {
         selectedMonthKey:
-          typeof budgetRaw?.selectedMonthKey === "string"
-            ? budgetRaw.selectedMonthKey
+          budgetRaw && typeof budgetRaw["selectedMonthKey"] === "string"
+            ? (budgetRaw["selectedMonthKey"] as string)
             : undefined,
         months,
       },
       meta: {
         version: VERSION,
         updatedAt:
-          typeof parsed.meta.updatedAt === "string"
-            ? parsed.meta.updatedAt
-            : new Date().toISOString(),
+          typeof meta["updatedAt"] === "string"
+            ? (meta["updatedAt"] as string)
+            : "",
       },
     };
   } catch {
