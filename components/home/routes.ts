@@ -8,7 +8,7 @@ export type HomeRoute = {
 export const HOME_ROUTES: HomeRoute[] = [
   {
     title: "Orçamento",
-    description: "Ir para finanças mensais",
+    description: "Organizar finanças mensais",
     href: "/budget",
     cta: "Ver Orçamento",
   },
