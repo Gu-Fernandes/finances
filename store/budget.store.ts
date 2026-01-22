@@ -2,19 +2,11 @@
 
 import {
   DEFAULT_BUDGET_MONTH,
+  createBudgetMonth,
   type AppData,
   type BudgetMonthData,
   useAppStore,
 } from "@/store/app-store";
-
-function createDefaultMonth(): BudgetMonthData {
-  return {
-    incomes: [],
-    fixedBills: [],
-    cardExpenses: [],
-    invested: { amount: "" },
-  };
-}
 
 export function useBudgetStore() {
   const { data, update } = useAppStore();
@@ -24,10 +16,7 @@ export function useBudgetStore() {
   const setSelectedMonthKey = (monthKey: string) => {
     update((prev: AppData) => ({
       ...prev,
-      budget: {
-        ...prev.budget,
-        selectedMonthKey: monthKey,
-      },
+      budget: { ...prev.budget, selectedMonthKey: monthKey },
     }));
   };
 
@@ -40,9 +29,10 @@ export function useBudgetStore() {
     updater: (prev: BudgetMonthData) => BudgetMonthData,
   ) => {
     update((prev: AppData) => {
-      const current = prev.budget.months[monthKey] ?? createDefaultMonth();
-
+      const current = prev.budget.months[monthKey] ?? createBudgetMonth();
       const nextMonth = updater(current);
+
+      if (nextMonth === current) return prev; // no-op
 
       return {
         ...prev,
@@ -57,10 +47,5 @@ export function useBudgetStore() {
     });
   };
 
-  return {
-    selectedMonthKey,
-    setSelectedMonthKey,
-    getMonth,
-    updateMonth,
-  };
+  return { selectedMonthKey, setSelectedMonthKey, getMonth, updateMonth };
 }

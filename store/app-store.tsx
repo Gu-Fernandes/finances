@@ -27,18 +27,30 @@ export const BUDGET_CATEGORIES = [
 
 export type BudgetCategory = (typeof BUDGET_CATEGORIES)[number];
 
-function isBudgetCategory(v: unknown): v is BudgetCategory {
-  return (
-    typeof v === "string" &&
-    (BUDGET_CATEGORIES as readonly string[]).includes(v)
-  );
-}
+export const INVESTMENTS_TABS = [
+  "fixedIncome",
+  "stocks",
+  "funds",
+  "treasuryDirect",
+  "crypto",
+] as const;
+
+export type InvestmentsTabKey = (typeof INVESTMENTS_TABS)[number];
 
 type UnknownRecord = Record<string, unknown>;
 
-function isRecord(v: unknown): v is UnknownRecord {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
+const isRecord = (v: unknown): v is UnknownRecord =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
+
+const isOneOf = <T extends readonly string[]>(
+  arr: T,
+  v: unknown,
+): v is T[number] =>
+  typeof v === "string" && (arr as readonly string[]).includes(v);
+
+const str = (v: unknown) => (typeof v === "string" ? v : "");
+const num = (v: unknown) =>
+  typeof v === "number" && Number.isFinite(v) ? v : 0;
 
 export type BudgetMonthData = {
   incomes: Array<{ id: string; label: string; amount: string }>;
@@ -56,9 +68,36 @@ export type BudgetData = {
   months: Record<string, BudgetMonthData>;
 };
 
+export type FixedIncomeItem = {
+  id: string;
+  name: string;
+  appliedCents: number;
+  currentCents: number;
+};
+
+export type StockItem = {
+  id: string;
+  name: string;
+  quantity: string;
+  avgPriceCents: number;
+  currentQuoteCents: number;
+};
+
+export type InvestmentsData = {
+  fixedIncome: FixedIncomeItem[];
+  funds: FixedIncomeItem[];
+  treasuryDirect: FixedIncomeItem[];
+  crypto: FixedIncomeItem[];
+  stocks: StockItem[];
+  ui: {
+    activeTab: InvestmentsTabKey;
+  };
+};
+
 export type AppData = {
   piggyBank: Record<string, string>;
   budget: BudgetData;
+  investments: InvestmentsData;
   meta: {
     version: typeof VERSION;
     updatedAt: string;
@@ -72,9 +111,26 @@ export const DEFAULT_BUDGET_MONTH: BudgetMonthData = {
   invested: { amount: "" },
 };
 
+export function createBudgetMonth(): BudgetMonthData {
+  return {
+    incomes: [],
+    fixedBills: [],
+    cardExpenses: [],
+    invested: { amount: "" },
+  };
+}
+
 const DEFAULT_DATA: AppData = {
   piggyBank: {},
   budget: { selectedMonthKey: undefined, months: {} },
+  investments: {
+    fixedIncome: [],
+    funds: [],
+    treasuryDirect: [],
+    crypto: [],
+    stocks: [],
+    ui: { activeTab: "fixedIncome" },
+  },
   meta: { version: VERSION, updatedAt: "" },
 };
 
@@ -91,81 +147,55 @@ function isOldDefaultIncomeRow(
 function normalizeMonthData(input: unknown): BudgetMonthData {
   const obj: UnknownRecord = isRecord(input) ? input : {};
 
-  const investedRaw = isRecord(obj["invested"])
+  const investedObj = isRecord(obj["invested"])
     ? (obj["invested"] as UnknownRecord)
-    : null;
-  const invested = {
-    amount:
-      typeof investedRaw?.["amount"] === "string"
-        ? (investedRaw["amount"] as string)
-        : "",
-  };
+    : {};
+  const invested = { amount: str(investedObj["amount"]) };
 
-  const fixedBillsRaw = Array.isArray(obj["fixedBills"])
-    ? obj["fixedBills"]
-    : [];
-  const fixedBills = fixedBillsRaw.map((it, idx) => {
+  const fixedBills = (
+    Array.isArray(obj["fixedBills"]) ? obj["fixedBills"] : []
+  ).map((it, idx) => {
     const row: UnknownRecord = isRecord(it) ? it : {};
     return {
-      id:
-        typeof row["id"] === "string"
-          ? (row["id"] as string)
-          : `fixed-${idx + 1}`,
-      description:
-        typeof row["description"] === "string"
-          ? (row["description"] as string)
-          : "",
-      amount:
-        typeof row["amount"] === "string" ? (row["amount"] as string) : "",
+      id: str(row["id"]) || `fixed-${idx + 1}`,
+      description: str(row["description"]),
+      amount: str(row["amount"]),
     };
   });
 
-  const cardRaw = Array.isArray(obj["cardExpenses"]) ? obj["cardExpenses"] : [];
-  const cardExpenses = cardRaw.map((it, idx) => {
+  const cardExpenses = (
+    Array.isArray(obj["cardExpenses"]) ? obj["cardExpenses"] : []
+  ).map((it, idx) => {
     const row: UnknownRecord = isRecord(it) ? it : {};
     const rawCat = row["category"];
-
     const category: BudgetCategory | "" =
-      rawCat === "" ? "" : isBudgetCategory(rawCat) ? rawCat : "";
+      rawCat === "" ? "" : isOneOf(BUDGET_CATEGORIES, rawCat) ? rawCat : "";
 
     return {
-      id:
-        typeof row["id"] === "string"
-          ? (row["id"] as string)
-          : `card-${idx + 1}`,
+      id: str(row["id"]) || `card-${idx + 1}`,
       category,
-      amount:
-        typeof row["amount"] === "string" ? (row["amount"] as string) : "",
+      amount: str(row["amount"]),
     };
   });
 
-  // ✅ novo formato: incomes[]
-  const incomesRaw = obj["incomes"];
-  if (Array.isArray(incomesRaw)) {
-    const incomes = incomesRaw.map((it, idx) => {
+  if (Array.isArray(obj["incomes"])) {
+    const incomes = obj["incomes"].map((it, idx) => {
       const row: UnknownRecord = isRecord(it) ? it : {};
       return {
-        id:
-          typeof row["id"] === "string"
-            ? (row["id"] as string)
-            : `income-${idx + 1}`,
-        label: typeof row["label"] === "string" ? (row["label"] as string) : "",
-        amount:
-          typeof row["amount"] === "string" ? (row["amount"] as string) : "",
+        id: str(row["id"]) || `income-${idx + 1}`,
+        label: str(row["label"]),
+        amount: str(row["amount"]),
       };
     });
 
-    const incomesNormalized = isOldDefaultIncomeRow(incomes) ? [] : incomes;
-
     return {
-      incomes: incomesNormalized,
+      incomes: isOldDefaultIncomeRow(incomes) ? [] : incomes,
       fixedBills,
       cardExpenses,
       invested,
     };
   }
 
-  // ✅ legado: income {label, amount}
   const legacyIncomeRaw = isRecord(obj["income"])
     ? (obj["income"] as UnknownRecord)
     : null;
@@ -174,28 +204,48 @@ function normalizeMonthData(input: unknown): BudgetMonthData {
     ? [
         {
           id: "income-1",
-          label:
-            typeof legacyIncomeRaw["label"] === "string"
-              ? (legacyIncomeRaw["label"] as string)
-              : "",
-          amount:
-            typeof legacyIncomeRaw["amount"] === "string"
-              ? (legacyIncomeRaw["amount"] as string)
-              : "",
+          label: str(legacyIncomeRaw["label"]),
+          amount: str(legacyIncomeRaw["amount"]),
         },
       ]
     : [];
 
-  const incomesNormalized = isOldDefaultIncomeRow(legacyAsArray)
-    ? []
-    : legacyAsArray;
-
   return {
-    incomes: incomesNormalized,
+    incomes: isOldDefaultIncomeRow(legacyAsArray) ? [] : legacyAsArray,
     fixedBills,
     cardExpenses,
     invested,
   };
+}
+
+function normalizeFixedIncomeList(
+  rawList: unknown,
+  idPrefix: string,
+): FixedIncomeItem[] {
+  const arr = Array.isArray(rawList) ? rawList : [];
+  return arr.map((it, idx) => {
+    const row: UnknownRecord = isRecord(it) ? it : {};
+    return {
+      id: str(row["id"]) || `${idPrefix}-${idx + 1}`,
+      name: str(row["name"]),
+      appliedCents: num(row["appliedCents"]),
+      currentCents: num(row["currentCents"]),
+    };
+  });
+}
+
+function normalizeStocksList(rawList: unknown): StockItem[] {
+  const arr = Array.isArray(rawList) ? rawList : [];
+  return arr.map((it, idx) => {
+    const row: UnknownRecord = isRecord(it) ? it : {};
+    return {
+      id: str(row["id"]) || `st-${idx + 1}`,
+      name: str(row["name"]),
+      quantity: str(row["quantity"]),
+      avgPriceCents: num(row["avgPriceCents"]),
+      currentQuoteCents: num(row["currentQuoteCents"]),
+    };
+  });
 }
 
 function safeParse(raw: string | null): AppData | null {
@@ -212,11 +262,10 @@ function safeParse(raw: string | null): AppData | null {
 
     const budgetRaw = isRecord(parsed["budget"])
       ? (parsed["budget"] as UnknownRecord)
-      : null;
-    const monthsRaw =
-      budgetRaw && isRecord(budgetRaw["months"])
-        ? (budgetRaw["months"] as UnknownRecord)
-        : {};
+      : {};
+    const monthsRaw = isRecord(budgetRaw["months"])
+      ? (budgetRaw["months"] as UnknownRecord)
+      : {};
 
     const months = Object.fromEntries(
       Object.entries(monthsRaw).map(([k, v]) => [k, normalizeMonthData(v)]),
@@ -225,25 +274,54 @@ function safeParse(raw: string | null): AppData | null {
     const piggyBankRaw = isRecord(parsed["piggyBank"])
       ? (parsed["piggyBank"] as UnknownRecord)
       : {};
+
     const piggyBank: Record<string, string> = Object.fromEntries(
       Object.entries(piggyBankRaw).filter(([, v]) => typeof v === "string"),
     ) as Record<string, string>;
 
+    const investmentsRaw = isRecord(parsed["investments"])
+      ? (parsed["investments"] as UnknownRecord)
+      : {};
+
+    const fixedIncome = normalizeFixedIncomeList(
+      investmentsRaw["fixedIncome"],
+      "fi",
+    );
+    const funds = normalizeFixedIncomeList(investmentsRaw["funds"], "fund");
+    const treasuryDirect = normalizeFixedIncomeList(
+      investmentsRaw["treasuryDirect"],
+      "td",
+    );
+    const crypto = normalizeFixedIncomeList(investmentsRaw["crypto"], "cr");
+    const stocks = normalizeStocksList(investmentsRaw["stocks"]);
+
+    const uiRaw = isRecord(investmentsRaw["ui"])
+      ? (investmentsRaw["ui"] as UnknownRecord)
+      : {};
+    const activeTab: InvestmentsTabKey = isOneOf(
+      INVESTMENTS_TABS,
+      uiRaw["activeTab"],
+    )
+      ? (uiRaw["activeTab"] as InvestmentsTabKey)
+      : "fixedIncome";
+
     return {
       piggyBank,
       budget: {
-        selectedMonthKey:
-          budgetRaw && typeof budgetRaw["selectedMonthKey"] === "string"
-            ? (budgetRaw["selectedMonthKey"] as string)
-            : undefined,
+        selectedMonthKey: str(budgetRaw["selectedMonthKey"]) || undefined,
         months,
+      },
+      investments: {
+        fixedIncome,
+        funds,
+        treasuryDirect,
+        crypto,
+        stocks,
+        ui: { activeTab },
       },
       meta: {
         version: VERSION,
-        updatedAt:
-          typeof meta["updatedAt"] === "string"
-            ? (meta["updatedAt"] as string)
-            : "",
+        updatedAt: str(meta["updatedAt"]),
       },
     };
   } catch {
@@ -259,15 +337,13 @@ function loadFromStorage(): AppData {
 function saveToStorage(data: AppData) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    // sem crash
-  }
+  } catch {}
 }
 
 type Snapshot = {
   data: AppData;
   ready: boolean;
-  currentMonthKey: string; // "YYYY-MM"
+  currentMonthKey: string;
 };
 
 const SERVER_SNAPSHOT: Snapshot = {
@@ -280,6 +356,7 @@ let _data: AppData = DEFAULT_DATA;
 let _ready = false;
 let _currentMonthKey = "";
 let _snapshot: Snapshot = SERVER_SNAPSHOT;
+
 const _listeners = new Set<() => void>();
 
 function emit() {
@@ -313,6 +390,7 @@ function setStoreData(updater: (prev: AppData) => AppData) {
   initClientOnce();
 
   const next = updater(_data);
+  if (next === _data) return;
 
   _data = {
     ...next,
