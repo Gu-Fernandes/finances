@@ -30,6 +30,8 @@ function createStockItem(defaultName = "Ação"): StockItem {
     quantity: "",
     avgPriceCents: 0,
     currentQuoteCents: 0,
+    dividendCents: 0,
+    dividendMonths: "",
   };
 }
 

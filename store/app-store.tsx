@@ -78,9 +78,12 @@ export type FixedIncomeItem = {
 export type StockItem = {
   id: string;
   name: string;
-  quantity: string;
-  avgPriceCents: number;
-  currentQuoteCents: number;
+  quantity: string; // número (não moeda)
+  avgPriceCents: number; // preço médio
+  currentQuoteCents: number; // cotação atual
+  dividendCents?: number;
+  dividendMonths?: string;
+  dividendPerShareCents?: number;
 };
 
 export type InvestmentsData = {
@@ -236,14 +239,39 @@ function normalizeFixedIncomeList(
 
 function normalizeStocksList(rawList: unknown): StockItem[] {
   const arr = Array.isArray(rawList) ? rawList : [];
+
   return arr.map((it, idx) => {
     const row: UnknownRecord = isRecord(it) ? it : {};
+
+    const avgPrice = row["avgPriceCents"];
+    const currentQuote = row["currentQuoteCents"];
+
+    const dividendCents = row["dividendCents"];
+    const dividendMonths = row["dividendMonths"];
+
     return {
-      id: str(row["id"]) || `st-${idx + 1}`,
-      name: str(row["name"]),
-      quantity: str(row["quantity"]),
-      avgPriceCents: num(row["avgPriceCents"]),
-      currentQuoteCents: num(row["currentQuoteCents"]),
+      id:
+        typeof row["id"] === "string" ? (row["id"] as string) : `st-${idx + 1}`,
+      name: typeof row["name"] === "string" ? (row["name"] as string) : "",
+      quantity:
+        typeof row["quantity"] === "string" ? (row["quantity"] as string) : "",
+
+      avgPriceCents:
+        typeof avgPrice === "number" && Number.isFinite(avgPrice)
+          ? avgPrice
+          : 0,
+      currentQuoteCents:
+        typeof currentQuote === "number" && Number.isFinite(currentQuote)
+          ? currentQuote
+          : 0,
+
+      // ✅ novos defaults
+      dividendCents:
+        typeof dividendCents === "number" && Number.isFinite(dividendCents)
+          ? dividendCents
+          : 0,
+      dividendMonths:
+        typeof dividendMonths === "string" ? (dividendMonths as string) : "",
     };
   });
 }

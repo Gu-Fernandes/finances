@@ -22,6 +22,13 @@ function parseQty(raw: string) {
   return Number.isFinite(num) ? num : 0;
 }
 
+function parseIntSafe(raw: string) {
+  const v = (raw ?? "").trim();
+  if (!v) return 0;
+  const n = Number(v.replace(/[^\d]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
 function getProfitBadgeMeta(profitCents: number) {
   const isNegative = profitCents < 0;
 
@@ -84,6 +91,12 @@ export function InvestedTotalCard() {
       return acc + Math.round((it.currentQuoteCents || 0) * qty);
     }, 0);
 
+    // ✅ soma de dividendos (Total dividendos = dividendCents * meses)
+    const stocksDividends = stocks.reduce((acc, it) => {
+      const months = parseIntSafe(it.dividendMonths ?? "");
+      return acc + (it.dividendCents || 0) * months;
+    }, 0);
+
     const totalAppliedCents =
       fixedApplied +
       fundsApplied +
@@ -98,7 +111,9 @@ export function InvestedTotalCard() {
       cryptoCurrent +
       stocksCurrent;
 
-    const totalProfitCents = totalCurrentCents - totalAppliedCents;
+    // ✅ lucro/perda incluindo dividendos recebidos
+    const totalProfitCents =
+      totalCurrentCents - totalAppliedCents + stocksDividends;
 
     return { totalCurrentCents, totalProfitCents };
   }, [fixedIncome, funds, treasuryDirect, crypto, stocks]);
