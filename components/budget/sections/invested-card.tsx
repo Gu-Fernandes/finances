@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback } from "react";
+
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -12,7 +14,25 @@ type Props = {
   onChangeAmount: (value: string) => void;
 };
 
+function toCentsFromMasked(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits ? Number(digits) : 0;
+}
+
+function formatInputFromCents(cents: number) {
+  if (!cents) return "";
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(cents / 100);
+}
+
 export function InvestedCard({ amount, onChangeAmount }: Props) {
+  const normalizeMoney = useCallback((raw: string) => {
+    const cents = toCentsFromMasked(raw);
+    return formatInputFromCents(cents);
+  }, []);
+
   const total = parseMoneyBR(amount);
 
   return (
@@ -29,8 +49,9 @@ export function InvestedCard({ amount, onChangeAmount }: Props) {
           </Label>
 
           <MoneyInput
-            value={amount}
-            onChange={(e) => onChangeAmount(e.target.value)}
+            value={normalizeMoney(amount)}
+            onChange={(e) => onChangeAmount(normalizeMoney(e.target.value))}
+            inputMode="decimal"
             placeholder="0,00"
           />
         </div>

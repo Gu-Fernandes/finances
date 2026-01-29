@@ -26,15 +26,42 @@ type Props = {
   items: Item[];
   onAdd: () => void;
   onChange: (id: string, patch: Partial<Item>) => void;
+  onRemove: (id: string) => void;
 };
 
-export function FixedBillsCard({ items, onAdd, onChange }: Props) {
+function toCentsFromMasked(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits ? Number(digits) : 0;
+}
+
+function formatInputFromCents(cents: number) {
+  if (!cents) return "";
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(cents / 100);
+}
+
+function normalizeMoney(raw: string) {
+  const cents = toCentsFromMasked(raw);
+  return formatInputFromCents(cents);
+}
+
+export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
   const total = items.reduce((sum, it) => sum + parseMoneyBR(it.amount), 0);
+
+  function tryAutoRemove(it: Item) {
+    const emptyDesc = (it.description ?? "").trim().length === 0;
+    const emptyAmount = toCentsFromMasked(it.amount) === 0;
+
+    if (emptyDesc && emptyAmount) onRemove(it.id);
+  }
 
   const last = items[items.length - 1];
   const canAdd =
     items.length === 0 ||
-    (last.description.trim().length > 0 && parseMoneyBR(last.amount) > 0);
+    ((last.description ?? "").trim().length > 0 &&
+      toCentsFromMasked(last.amount) > 0);
 
   return (
     <Card>
@@ -43,6 +70,7 @@ export function FixedBillsCard({ items, onAdd, onChange }: Props) {
 
         <div className="flex items-center gap-5">
           <Badge variant="destructive">{formatBRL(total)}</Badge>
+
           <Button
             type="button"
             variant="default"
@@ -66,7 +94,10 @@ export function FixedBillsCard({ items, onAdd, onChange }: Props) {
               value={it.description}
               onValueChange={(v) => onChange(it.id, { description: v })}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger
+                className="w-full"
+                onBlur={() => tryAutoRemove(it)}
+              >
                 <SelectValue placeholder="Conta fixa" />
               </SelectTrigger>
 
@@ -80,8 +111,12 @@ export function FixedBillsCard({ items, onAdd, onChange }: Props) {
             </Select>
 
             <MoneyInput
-              value={it.amount}
-              onChange={(e) => onChange(it.id, { amount: e.target.value })}
+              value={normalizeMoney(it.amount)}
+              onChange={(e) =>
+                onChange(it.id, { amount: normalizeMoney(e.target.value) })
+              }
+              onBlur={() => tryAutoRemove(it)}
+              inputMode="decimal"
               placeholder="0,00"
             />
           </div>

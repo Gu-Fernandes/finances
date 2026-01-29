@@ -20,12 +20,14 @@ type Props = {
     id: string,
     patch: Partial<{ id: string; label: string; amount: string }>,
   ) => void;
+  onRemoveIncome: (id: string) => void;
 
   onAddFixed: () => void;
   onChangeFixed: (
     id: string,
     patch: Partial<{ id: string; description: string; amount: string }>,
   ) => void;
+  onRemoveFixed: (id: string) => void;
 
   onAddCard: () => void;
   onChangeCard: (
@@ -36,6 +38,7 @@ type Props = {
       amount: string;
     }>,
   ) => void;
+  onRemoveCard: (id: string) => void;
 
   onChangeInvestedAmount: (value: string) => void;
 };
@@ -45,10 +48,13 @@ export function BudgetMonthCard({
   data,
   onAddIncome,
   onChangeIncome,
+  onRemoveIncome,
   onAddFixed,
   onChangeFixed,
+  onRemoveFixed,
   onAddCard,
   onChangeCard,
+  onRemoveCard,
   onChangeInvestedAmount,
 }: Props) {
   const incomeTotal = (data.incomes ?? []).reduce(
@@ -78,7 +84,6 @@ export function BudgetMonthCard({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* ✅ Card resumo acima dos 4 cards */}
         <BudgetSummaryCard
           incomeTotal={incomeTotal}
           expenseTotal={expenseTotal}
@@ -90,12 +95,14 @@ export function BudgetMonthCard({
             items={data.incomes}
             onAdd={onAddIncome}
             onChange={onChangeIncome}
+            onRemove={onRemoveIncome}
           />
 
           <FixedBillsCard
             items={data.fixedBills}
             onAdd={onAddFixed}
             onChange={onChangeFixed}
+            onRemove={onRemoveFixed}
           />
 
           <div className="space-y-4">
@@ -109,6 +116,7 @@ export function BudgetMonthCard({
               }
               onAdd={onAddCard}
               onChange={onChangeCard}
+              onRemove={onRemoveCard}
             />
 
             <InvestedCard

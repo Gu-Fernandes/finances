@@ -8,6 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useInvestmentsStore } from "@/store/investments.store";
 
 import { formatBRLFromCents } from "../utils/money";
@@ -58,12 +69,13 @@ export function FixedIncomeTab() {
     addFixedIncomeItem,
     updateFixedIncomeItem,
     removeFixedIncomeItem,
+    ensureFixedIncomeSeeded,
   } = useInvestmentsStore();
 
   useEffect(() => {
     if (!ready) return;
-    if (fixedIncome.length === 0) addFixedIncomeItem();
-  }, [ready, fixedIncome.length, addFixedIncomeItem]);
+    ensureFixedIncomeSeeded();
+  }, [ready, ensureFixedIncomeSeeded]);
 
   const totals = useMemo(() => {
     const totalAppliedCents = fixedIncome.reduce(
@@ -93,7 +105,6 @@ export function FixedIncomeTab() {
 
   return (
     <div className="space-y-4">
-      {/* Título centralizado */}
       <div className="space-y-2">
         <p className="text-center text-muted-foreground">Renda fixa</p>
 
@@ -101,7 +112,6 @@ export function FixedIncomeTab() {
           {formatBRLFromCents(totals.totalCurrentCents)}
         </p>
 
-        {/* Badges centralizados */}
         <div className="flex justify-center gap-2">
           <Badge variant={totalMeta.variant} className="gap-1">
             <totalMeta.Icon className="h-4 w-4" />
@@ -116,6 +126,12 @@ export function FixedIncomeTab() {
       </div>
 
       <div className="space-y-3">
+        {fixedIncome.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Nenhum item adicionado ainda.
+          </p>
+        ) : null}
+
         {fixedIncome.map((it) => {
           const profitCents = (it.currentCents || 0) - (it.appliedCents || 0);
           const meta = getProfitBadgeMeta(profitCents);
@@ -124,6 +140,8 @@ export function FixedIncomeTab() {
             it.appliedCents || 0,
             profitCents,
           );
+
+          const itemName = (it.name ?? "").trim() || "Renda fixa";
 
           return (
             <Card key={it.id} className="p-4">
@@ -138,18 +156,44 @@ export function FixedIncomeTab() {
                   disabled={!ready}
                 />
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-destructive"
-                  size="icon"
-                  onClick={() => removeFixedIncomeItem(it.id)}
-                  aria-label="Remover"
-                  title="Remover"
-                  disabled={!ready}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-destructive"
+                      size="icon"
+                      aria-label="Remover"
+                      title="Remover"
+                      disabled={!ready}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir {itemName}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Essa ação não pode ser desfeita. O item será removido da
+                        sua lista de renda fixa.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+
+                      <AlertDialogAction asChild>
+                        <Button
+                          variant="destructive"
+                          onClick={() => removeFixedIncomeItem(it.id)}
+                        >
+                          Excluir
+                        </Button>
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
 
               <div className="mt-4 space-y-3">
@@ -205,8 +249,13 @@ export function FixedIncomeTab() {
           );
         })}
 
-        <div className="flex py-5 justify-end">
-          <Button type="button" onClick={addFixedIncomeItem} disabled={!ready}>
+        <div className="flex justify-end py-5">
+          <Button
+            type="button"
+            onClick={addFixedIncomeItem}
+            disabled={!ready}
+            className="gap-2"
+          >
             <Plus className="h-4 w-4" />
             Adicionar
           </Button>

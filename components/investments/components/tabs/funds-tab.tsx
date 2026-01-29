@@ -8,6 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useInvestmentsStore } from "@/store/investments.store";
 
 import { formatBRLFromCents } from "../utils/money";
@@ -52,13 +63,19 @@ function getProfitPercentLabel(appliedCents: number, profitCents: number) {
 }
 
 export function FundsTab() {
-  const { ready, funds, addFundItem, updateFundItem, removeFundItem } =
-    useInvestmentsStore();
+  const {
+    ready,
+    funds,
+    addFundItem,
+    updateFundItem,
+    removeFundItem,
+    ensureFundsSeeded,
+  } = useInvestmentsStore();
 
   useEffect(() => {
     if (!ready) return;
-    if (funds.length === 0) addFundItem();
-  }, [ready, funds.length, addFundItem]);
+    ensureFundsSeeded();
+  }, [ready, ensureFundsSeeded]);
 
   const totals = useMemo(() => {
     const totalAppliedCents = funds.reduce(
@@ -109,6 +126,12 @@ export function FundsTab() {
       </div>
 
       <div className="space-y-3">
+        {funds.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Nenhum fundo adicionado ainda.
+          </p>
+        ) : null}
+
         {funds.map((it) => {
           const profitCents = (it.currentCents || 0) - (it.appliedCents || 0);
           const meta = getProfitBadgeMeta(profitCents);
@@ -117,6 +140,8 @@ export function FundsTab() {
             it.appliedCents || 0,
             profitCents,
           );
+
+          const itemName = (it.name ?? "").trim() || "Fundo";
 
           return (
             <Card key={it.id} className="p-4">
@@ -131,18 +156,44 @@ export function FundsTab() {
                   disabled={!ready}
                 />
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-destructive"
-                  size="icon"
-                  onClick={() => removeFundItem(it.id)}
-                  aria-label="Remover"
-                  title="Remover"
-                  disabled={!ready}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-destructive"
+                      size="icon"
+                      aria-label="Remover"
+                      title="Remover"
+                      disabled={!ready}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir {itemName}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Essa ação não pode ser desfeita. O item será removido da
+                        sua lista de fundos.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+
+                      <AlertDialogAction asChild>
+                        <Button
+                          variant="destructive"
+                          onClick={() => removeFundItem(it.id)}
+                        >
+                          Excluir
+                        </Button>
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
 
               <div className="mt-4 space-y-3">

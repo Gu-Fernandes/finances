@@ -8,6 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useInvestmentsStore } from "@/store/investments.store";
 
 import { formatBRLFromCents } from "../utils/money";
@@ -111,6 +122,12 @@ export function CryptoTab() {
       </div>
 
       <div className="space-y-3">
+        {crypto.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Nenhuma cripto adicionada ainda.
+          </p>
+        ) : null}
+
         {crypto.map((it) => {
           const profitCents = (it.currentCents || 0) - (it.appliedCents || 0);
           const meta = getProfitBadgeMeta(profitCents);
@@ -119,6 +136,8 @@ export function CryptoTab() {
             it.appliedCents || 0,
             profitCents,
           );
+
+          const itemName = (it.name ?? "").trim() || "Cripto";
 
           return (
             <Card key={it.id} className="p-4">
@@ -133,18 +152,44 @@ export function CryptoTab() {
                   disabled={!ready}
                 />
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-destructive"
-                  size="icon"
-                  onClick={() => removeCryptoItem(it.id)}
-                  aria-label="Remover"
-                  title="Remover"
-                  disabled={!ready}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-destructive"
+                      size="icon"
+                      aria-label="Remover"
+                      title="Remover"
+                      disabled={!ready}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir {itemName}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Essa ação não pode ser desfeita. O item será removido da
+                        sua lista de cripto.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+
+                      <AlertDialogAction asChild>
+                        <Button
+                          variant="destructive"
+                          onClick={() => removeCryptoItem(it.id)}
+                        >
+                          Excluir
+                        </Button>
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
 
               <div className="mt-4 space-y-3">

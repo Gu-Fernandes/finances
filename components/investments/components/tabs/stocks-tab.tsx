@@ -9,10 +9,22 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Separator } from "@/components/ui/separator";
+
 import { cn } from "@/lib/utils";
 import { useInvestmentsStore } from "@/store/investments.store";
 
 import { formatBRLFromCents } from "../utils/money";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 function toCentsFromMasked(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -109,14 +121,10 @@ export function StocksTab() {
     totals.totalProfitCents,
   );
 
-  /**
-   * ✅ Carrossel (scroll-snap) + dots
-   */
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // ✅ clamp derivado (sem setState em effect)
   const activeIndexClamped = useMemo(() => {
     const max = Math.max(0, stocks.length - 1);
     return Math.min(activeIndex, max);
@@ -181,7 +189,6 @@ export function StocksTab() {
 
   const handleAdd = useCallback(() => {
     addStockItem();
-    // depois do render, tenta ir pro último (index = length anterior)
     requestAnimationFrame(() => scrollToIndex(stocks.length));
   }, [addStockItem, scrollToIndex, stocks.length]);
 
@@ -208,277 +215,326 @@ export function StocksTab() {
       </div>
 
       <div className="space-y-3">
-        {/* ✅ CARROSSEL */}
-        <div
-          ref={viewportRef}
-          onScroll={onScroll}
-          className="flex w-full gap-3 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch] snap-x snap-mandatory scroll-smooth"
-        >
-          {stocks.map((it) => {
-            const qty = parseQty(it.quantity);
+        {stocks.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Nenhum item adicionado ainda.
+          </p>
+        ) : (
+          <>
+            {/* ✅ CARROSSEL */}
+            <div
+              ref={viewportRef}
+              onScroll={onScroll}
+              className="flex w-full gap-3 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch] snap-x snap-mandatory scroll-smooth"
+            >
+              {stocks.map((it) => {
+                const qty = parseQty(it.quantity);
 
-            const costCents = Math.round((it.avgPriceCents || 0) * qty);
-            const totalCents = Math.round((it.currentQuoteCents || 0) * qty);
+                const costCents = Math.round((it.avgPriceCents || 0) * qty);
+                const totalCents = Math.round(
+                  (it.currentQuoteCents || 0) * qty,
+                );
 
-            const profitCents = totalCents - costCents;
-            const meta = getProfitBadgeMeta(profitCents);
-            const profitPercentLabel = getProfitPercentLabel(
-              costCents,
-              profitCents,
-            );
+                const profitCents = totalCents - costCents;
+                const meta = getProfitBadgeMeta(profitCents);
+                const profitPercentLabel = getProfitPercentLabel(
+                  costCents,
+                  profitCents,
+                );
 
-            const months = parseIntSafe(it.dividendMonths ?? "");
-            const dividendTotalCents = (it.dividendCents || 0) * months;
+                const months = parseIntSafe(it.dividendMonths ?? "");
+                const dividendTotalCents = (it.dividendCents || 0) * months;
 
-            const quoteCents = it.currentQuoteCents || 0;
-            const perShareCents = it.dividendPerShareCents || 0;
+                const quoteCents = it.currentQuoteCents || 0;
+                const perShareCents = it.dividendPerShareCents || 0;
 
-            const yieldAm =
-              quoteCents > 0 ? (perShareCents / quoteCents) * 100 : 0;
-            const yieldAa = yieldAm * 12;
+                const yieldAm =
+                  quoteCents > 0 ? (perShareCents / quoteCents) * 100 : 0;
+                const yieldAa = yieldAm * 12;
 
-            return (
-              <div key={it.id} className="w-full shrink-0 snap-center">
-                <Card className="p-4">
-                  <div className="flex items-start justify-between">
-                    <Input
-                      value={it.name}
-                      onChange={(e) =>
-                        updateStockItem(it.id, { name: e.target.value })
-                      }
-                      placeholder="Nome"
-                      className="h-10 border-0 bg-transparent text-center text-lg font-semibold shadow-none focus-visible:ring-0"
-                      disabled={!ready}
-                    />
+                const stockName = (it.name ?? "").trim() || "Ação";
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="text-destructive"
-                      size="icon"
-                      onClick={() => removeStockItem(it.id)}
-                      aria-label="Remover"
-                      title="Remover"
-                      disabled={!ready}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div>
-                    <p className="text-left text-base font-semibold">
-                      {formatBRLFromCents(totalCents)}
-                    </p>
-
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Badge variant={meta.variant} className="gap-1">
-                        <meta.Icon className="h-4 w-4" />
-                        {formatBRLFromCents(profitCents)}
-                      </Badge>
-
-                      <Badge variant={meta.variant} className="gap-1">
-                        <meta.Icon className="h-4 w-4" />
-                        {profitPercentLabel}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm text-muted-foreground">
-                        Quantidade
-                      </p>
-
-                      <div className="w-44 sm:w-56">
+                return (
+                  <div key={it.id} className="w-full shrink-0 snap-center">
+                    <Card className="p-4">
+                      <div className="flex items-start justify-between">
                         <Input
-                          value={it.quantity}
+                          value={it.name}
                           onChange={(e) =>
-                            updateStockItem(it.id, { quantity: e.target.value })
+                            updateStockItem(it.id, { name: e.target.value })
                           }
-                          inputMode="decimal"
-                          placeholder="0"
-                          className="text-right"
+                          placeholder="Nome"
+                          className="h-10 border-0 bg-transparent text-center text-lg font-semibold shadow-none focus-visible:ring-0"
                           disabled={!ready}
                         />
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="text-destructive"
+                              size="icon"
+                              aria-label="Remover"
+                              title="Remover"
+                              disabled={!ready}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Excluir {stockName}?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Essa ação não pode ser desfeita. O item será
+                                removido do seu controle de investimentos.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+
+                              <AlertDialogAction asChild>
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => removeStockItem(it.id)}
+                                >
+                                  Excluir
+                                </Button>
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
-                    </div>
 
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm text-muted-foreground">
-                        Preço médio
-                      </p>
-
-                      <div className="w-44 sm:w-56">
-                        <MoneyInput
-                          value={formatInputFromCents(it.avgPriceCents)}
-                          onChange={(e) =>
-                            updateStockItem(it.id, {
-                              avgPriceCents: toCentsFromMasked(e.target.value),
-                            })
-                          }
-                          inputMode="decimal"
-                          disabled={!ready}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm text-muted-foreground">
-                        Custo médio
-                      </p>
-
-                      <div className="w-44 sm:w-56">
-                        <MoneyInput
-                          value={formatInputFromCents(costCents)}
-                          inputMode="decimal"
-                          disabled
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm text-muted-foreground">
-                        Cotação atual
-                      </p>
-
-                      <div className="w-44 sm:w-56">
-                        <MoneyInput
-                          value={formatInputFromCents(it.currentQuoteCents)}
-                          onChange={(e) =>
-                            updateStockItem(it.id, {
-                              currentQuoteCents: toCentsFromMasked(
-                                e.target.value,
-                              ),
-                            })
-                          }
-                          inputMode="decimal"
-                          disabled={!ready}
-                        />
-                      </div>
-                    </div>
-
-                    <Separator className="my-3" />
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm text-muted-foreground">
-                          Dividendos
+                      <div>
+                        <p className="text-left text-base font-semibold">
+                          {formatBRLFromCents(totalCents)}
                         </p>
 
-                        <div className="w-44 sm:w-56">
-                          <MoneyInput
-                            value={formatInputFromCents(it.dividendCents || 0)}
-                            onChange={(e) =>
-                              updateStockItem(it.id, {
-                                dividendCents: toCentsFromMasked(
-                                  e.target.value,
-                                ),
-                              })
-                            }
-                            inputMode="decimal"
-                            disabled={!ready}
-                          />
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Badge variant={meta.variant} className="gap-1">
+                            <meta.Icon className="h-4 w-4" />
+                            {formatBRLFromCents(profitCents)}
+                          </Badge>
+
+                          <Badge variant={meta.variant} className="gap-1">
+                            <meta.Icon className="h-4 w-4" />
+                            {profitPercentLabel}
+                          </Badge>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm text-muted-foreground">
-                          Meses pagos
-                        </p>
-
-                        <div className="w-44 sm:w-56">
-                          <Input
-                            value={it.dividendMonths ?? ""}
-                            onChange={(e) =>
-                              updateStockItem(it.id, {
-                                dividendMonths: e.target.value,
-                              })
-                            }
-                            inputMode="numeric"
-                            placeholder="0"
-                            className="text-right"
-                            disabled={!ready}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center py-2 justify-between gap-3">
-                        <p className="text-sm font-semibold text-muted-foreground">
-                          Total dividendos
-                        </p>
-
-                        <div className="w-44 sm:w-56 text-right">
-                          <p className="text-sm text-primary font-semibold">
-                            {formatBRLFromCents(dividendTotalCents)}
+                      <div className="mt-4 space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm text-muted-foreground">
+                            Quantidade
                           </p>
+
+                          <div className="w-44 sm:w-56">
+                            <Input
+                              value={it.quantity}
+                              onChange={(e) =>
+                                updateStockItem(it.id, {
+                                  quantity: e.target.value,
+                                })
+                              }
+                              inputMode="decimal"
+                              placeholder="0"
+                              className="text-right"
+                              disabled={!ready}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm text-muted-foreground">
+                            Preço médio
+                          </p>
+
+                          <div className="w-44 sm:w-56">
+                            <MoneyInput
+                              value={formatInputFromCents(it.avgPriceCents)}
+                              onChange={(e) =>
+                                updateStockItem(it.id, {
+                                  avgPriceCents: toCentsFromMasked(
+                                    e.target.value,
+                                  ),
+                                })
+                              }
+                              inputMode="decimal"
+                              disabled={!ready}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm text-muted-foreground">
+                            Custo médio
+                          </p>
+
+                          <div className="w-44 sm:w-56">
+                            <MoneyInput
+                              value={formatInputFromCents(costCents)}
+                              inputMode="decimal"
+                              disabled
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm text-muted-foreground">
+                            Cotação atual
+                          </p>
+
+                          <div className="w-44 sm:w-56">
+                            <MoneyInput
+                              value={formatInputFromCents(it.currentQuoteCents)}
+                              onChange={(e) =>
+                                updateStockItem(it.id, {
+                                  currentQuoteCents: toCentsFromMasked(
+                                    e.target.value,
+                                  ),
+                                })
+                              }
+                              inputMode="decimal"
+                              disabled={!ready}
+                            />
+                          </div>
+                        </div>
+
+                        <Separator className="my-3" />
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm text-muted-foreground">
+                              Dividendos
+                            </p>
+
+                            <div className="w-44 sm:w-56">
+                              <MoneyInput
+                                value={formatInputFromCents(
+                                  it.dividendCents || 0,
+                                )}
+                                onChange={(e) =>
+                                  updateStockItem(it.id, {
+                                    dividendCents: toCentsFromMasked(
+                                      e.target.value,
+                                    ),
+                                  })
+                                }
+                                inputMode="decimal"
+                                disabled={!ready}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm text-muted-foreground">
+                              Meses pagos
+                            </p>
+
+                            <div className="w-44 sm:w-56">
+                              <Input
+                                value={it.dividendMonths ?? ""}
+                                onChange={(e) =>
+                                  updateStockItem(it.id, {
+                                    dividendMonths: e.target.value,
+                                  })
+                                }
+                                inputMode="numeric"
+                                placeholder="0"
+                                className="text-right"
+                                disabled={!ready}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center py-2 justify-between gap-3">
+                            <p className="text-sm font-semibold text-muted-foreground">
+                              Total dividendos
+                            </p>
+
+                            <div className="w-44 sm:w-56 text-right">
+                              <p className="text-sm text-primary font-semibold">
+                                {formatBRLFromCents(dividendTotalCents)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <Separator className="my-3" />
+
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm text-muted-foreground">
+                              Dividendo por cota
+                            </p>
+
+                            <div className="w-44 sm:w-56">
+                              <MoneyInput
+                                value={formatInputFromCents(perShareCents)}
+                                onChange={(e) =>
+                                  updateStockItem(it.id, {
+                                    dividendPerShareCents: toCentsFromMasked(
+                                      e.target.value,
+                                    ),
+                                  })
+                                }
+                                inputMode="decimal"
+                                disabled={!ready}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid py-4 grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-1">
+                              <p className="text-sm text-muted-foreground">
+                                % a.m
+                              </p>
+                              <Badge variant="secondary" className="w-fit">
+                                {formatPercent(yieldAm)}%
+                              </Badge>
+                            </div>
+
+                            <div className="flex flex-col items-end gap-1">
+                              <p className="text-sm text-muted-foreground">
+                                % a.a
+                              </p>
+                              <Badge variant="secondary" className="w-fit">
+                                {formatPercent(yieldAa)}%
+                              </Badge>
+                            </div>
+                          </div>
                         </div>
                       </div>
-
-                      <Separator className="my-3" />
-
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm text-muted-foreground">
-                          Dividendo por cota
-                        </p>
-
-                        <div className="w-44 sm:w-56">
-                          <MoneyInput
-                            value={formatInputFromCents(perShareCents)}
-                            onChange={(e) =>
-                              updateStockItem(it.id, {
-                                dividendPerShareCents: toCentsFromMasked(
-                                  e.target.value,
-                                ),
-                              })
-                            }
-                            inputMode="decimal"
-                            disabled={!ready}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid py-4 grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-1">
-                          <p className="text-sm text-muted-foreground">% a.m</p>
-                          <Badge variant="secondary" className="w-fit">
-                            {formatPercent(yieldAm)}%
-                          </Badge>
-                        </div>
-
-                        <div className="flex flex-col items-end gap-1">
-                          <p className="text-sm text-muted-foreground">% a.a</p>
-                          <Badge variant="secondary" className="w-fit">
-                            {formatPercent(yieldAa)}%
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
+                    </Card>
                   </div>
-                </Card>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
 
-        {/* ✅ DOTS */}
-        {stocks.length > 1 ? (
-          <div className="flex justify-center gap-2 pt-1">
-            {stocks.map((_, idx) => (
-              <button
-                key={`dot-${idx}`}
-                type="button"
-                aria-label={`Ir para ${idx + 1}`}
-                onClick={() => scrollToIndex(idx)}
-                className={cn(
-                  "h-2 w-2 rounded-full transition",
-                  idx === activeIndexClamped
-                    ? "bg-foreground"
-                    : "bg-muted-foreground/30",
-                )}
-              />
-            ))}
-          </div>
-        ) : null}
+            {stocks.length > 1 ? (
+              <div className="flex justify-center gap-2 pt-1">
+                {stocks.map((_, idx) => (
+                  <button
+                    key={`dot-${idx}`}
+                    type="button"
+                    aria-label={`Ir para ${idx + 1}`}
+                    onClick={() => scrollToIndex(idx)}
+                    className={cn(
+                      "h-2 w-2 rounded-full transition",
+                      idx === activeIndexClamped
+                        ? "bg-foreground"
+                        : "bg-muted-foreground/30",
+                    )}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </>
+        )}
 
         <div className="flex justify-end py-5">
           <Button

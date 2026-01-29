@@ -32,6 +32,7 @@ function createStockItem(defaultName = "Ação"): StockItem {
     currentQuoteCents: 0,
     dividendCents: 0,
     dividendMonths: "",
+    dividendPerShareCents: 0, // ✅ garante persistência
   };
 }
 
@@ -89,11 +90,6 @@ export function useInvestmentsStore() {
     });
   };
 
-  const ensureFixedListSeeded = (key: FixedListKey) =>
-    setFixedList(key, (prev) =>
-      prev.length > 0 ? prev : [createFixedIncomeItem(DEFAULT_NAMES[key])],
-    );
-
   const addFixedListItem = (key: FixedListKey) =>
     setFixedList(key, (prev) => [
       ...prev,
@@ -110,9 +106,7 @@ export function useInvestmentsStore() {
     );
 
   const removeFixedListItem = (key: FixedListKey, id: string) =>
-    setFixedList(key, (prev) =>
-      prev.length <= 1 ? prev : prev.filter((i) => i.id !== id),
-    );
+    setFixedList(key, (prev) => prev.filter((i) => i.id !== id)); // ✅ permite ficar vazio
 
   const setStocks = (
     next: StockItem[] | ((prev: StockItem[]) => StockItem[]),
@@ -128,8 +122,19 @@ export function useInvestmentsStore() {
     });
   };
 
+  // ✅ migração/normalização: garante dividendPerShareCents mesmo em dados antigos
   const ensureStocksSeeded = () =>
-    setStocks((prev) => (prev.length > 0 ? prev : [createStockItem("Ações")]));
+    setStocks((prev) => {
+      if (prev.length === 0) return prev;
+
+      const anyMissing = prev.some((it) => it.dividendPerShareCents == null);
+      if (!anyMissing) return prev;
+
+      return prev.map((it) => ({
+        ...it,
+        dividendPerShareCents: it.dividendPerShareCents ?? 0,
+      }));
+    });
 
   const addStockItem = () =>
     setStocks((prev) => [...prev, createStockItem("Ação")]);
@@ -140,9 +145,7 @@ export function useInvestmentsStore() {
     );
 
   const removeStockItem = (id: string) =>
-    setStocks((prev) =>
-      prev.length <= 1 ? prev : prev.filter((i) => i.id !== id),
-    );
+    setStocks((prev) => prev.filter((i) => i.id !== id)); // ✅ permite ficar vazio
 
   const setActiveTab = (tab: InvestmentsTabKey) => {
     setInvestments((prev) => {
@@ -172,14 +175,14 @@ export function useInvestmentsStore() {
       updateFixedListItem("fixedIncome", id, patch),
     removeFixedIncomeItem: (id: string) =>
       removeFixedListItem("fixedIncome", id),
-    ensureFixedIncomeSeeded: () => ensureFixedListSeeded("fixedIncome"),
+    ensureFixedIncomeSeeded: () => setFixedList("fixedIncome", (prev) => prev),
 
     funds,
     addFundItem: () => addFixedListItem("funds"),
     updateFundItem: (id: string, patch: Partial<FixedIncomeItem>) =>
       updateFixedListItem("funds", id, patch),
     removeFundItem: (id: string) => removeFixedListItem("funds", id),
-    ensureFundsSeeded: () => ensureFixedListSeeded("funds"),
+    ensureFundsSeeded: () => setFixedList("funds", (prev) => prev),
 
     treasuryDirect,
     addTreasuryDirectItem: () => addFixedListItem("treasuryDirect"),
@@ -187,14 +190,15 @@ export function useInvestmentsStore() {
       updateFixedListItem("treasuryDirect", id, patch),
     removeTreasuryDirectItem: (id: string) =>
       removeFixedListItem("treasuryDirect", id),
-    ensureTreasuryDirectSeeded: () => ensureFixedListSeeded("treasuryDirect"),
+    ensureTreasuryDirectSeeded: () =>
+      setFixedList("treasuryDirect", (prev) => prev),
 
     crypto,
     addCryptoItem: () => addFixedListItem("crypto"),
     updateCryptoItem: (id: string, patch: Partial<FixedIncomeItem>) =>
       updateFixedListItem("crypto", id, patch),
     removeCryptoItem: (id: string) => removeFixedListItem("crypto", id),
-    ensureCryptoSeeded: () => ensureFixedListSeeded("crypto"),
+    ensureCryptoSeeded: () => setFixedList("crypto", (prev) => prev),
 
     stocks,
     addStockItem,

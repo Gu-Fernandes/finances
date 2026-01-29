@@ -74,6 +74,12 @@ export function BudgetPageClient() {
             ),
           }))
         }
+        onRemoveIncome={(id) =>
+          updateMonth(monthKey, (prev) => ({
+            ...prev,
+            incomes: prev.incomes.filter((it) => it.id !== id),
+          }))
+        }
         onAddFixed={() =>
           updateMonth(monthKey, (prev) => ({
             ...prev,
@@ -89,6 +95,12 @@ export function BudgetPageClient() {
             fixedBills: prev.fixedBills.map((it) =>
               it.id === id ? { ...it, ...patch } : it,
             ),
+          }))
+        }
+        onRemoveFixed={(id) =>
+          updateMonth(monthKey, (prev) => ({
+            ...prev,
+            fixedBills: prev.fixedBills.filter((it) => it.id !== id),
           }))
         }
         onAddCard={() =>
@@ -114,6 +126,12 @@ export function BudgetPageClient() {
                   }
                 : it,
             ),
+          }))
+        }
+        onRemoveCard={(id) =>
+          updateMonth(monthKey, (prev) => ({
+            ...prev,
+            cardExpenses: prev.cardExpenses.filter((it) => it.id !== id),
           }))
         }
         onChangeInvestedAmount={(v) =>

@@ -81,9 +81,9 @@ export type StockItem = {
   quantity: string; // número (não moeda)
   avgPriceCents: number; // preço médio
   currentQuoteCents: number; // cotação atual
-  dividendCents?: number;
-  dividendMonths?: string;
-  dividendPerShareCents?: number;
+  dividendCents: number;
+  dividendMonths: string;
+  dividendPerShareCents: number;
 };
 
 export type InvestmentsData = {
@@ -248,6 +248,7 @@ function normalizeStocksList(rawList: unknown): StockItem[] {
 
     const dividendCents = row["dividendCents"];
     const dividendMonths = row["dividendMonths"];
+    const dividendPerShareCents = row["dividendPerShareCents"];
 
     return {
       id:
@@ -265,13 +266,18 @@ function normalizeStocksList(rawList: unknown): StockItem[] {
           ? currentQuote
           : 0,
 
-      // ✅ novos defaults
       dividendCents:
         typeof dividendCents === "number" && Number.isFinite(dividendCents)
           ? dividendCents
           : 0,
       dividendMonths:
         typeof dividendMonths === "string" ? (dividendMonths as string) : "",
+
+      dividendPerShareCents:
+        typeof dividendPerShareCents === "number" &&
+        Number.isFinite(dividendPerShareCents)
+          ? dividendPerShareCents
+          : 0,
     };
   });
 }
