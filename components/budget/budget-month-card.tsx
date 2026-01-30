@@ -1,6 +1,6 @@
 "use client";
 
-import type { BudgetMonthData, BudgetCategory } from "@/store/app-store";
+import type { BudgetMonthData } from "@/store/app-store";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -34,7 +34,7 @@ type Props = {
     id: string,
     patch: Partial<{
       id: string;
-      category: BudgetCategory | "";
+      category: string; // ✅ agora é string
       amount: string;
     }>,
   ) => void;
@@ -107,13 +107,7 @@ export function BudgetMonthCard({
 
           <div className="space-y-4">
             <CardExpensesCard
-              items={
-                data.cardExpenses as Array<{
-                  id: string;
-                  category: BudgetCategory | "";
-                  amount: string;
-                }>
-              }
+              items={data.cardExpenses}
               onAdd={onAddCard}
               onChange={onChangeCard}
               onRemove={onRemoveCard}
