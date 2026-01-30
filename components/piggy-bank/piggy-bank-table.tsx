@@ -4,8 +4,8 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoneyInput } from "@/components/ui/money-input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -93,14 +93,15 @@ function DesktopTable({ rows, values, currentKey, onChange }: ViewProps) {
                           Guardado em {r.label}
                         </Label>
 
-                        <span className="text-muted-foreground">R$</span>
-                        <Input
+                        <MoneyInput
                           id={inputId}
+                          currencyLabel="R$"
                           value={values[r.key] ?? ""}
-                          onChange={(e) => onChange(r.key, e.target.value)}
-                          inputMode="decimal"
+                          onValueChange={(formatted) =>
+                            onChange(r.key, formatted)
+                          }
                           placeholder="0,00"
-                          className="max-w-[160px] text-right"
+                          className="max-w-[160px]"
                         />
                       </div>
                     </TableCell>
@@ -157,20 +158,13 @@ function MobileList({ rows, values, currentKey, onChange }: ViewProps) {
                   Guardado
                 </Label>
 
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                    R$
-                  </span>
-
-                  <Input
-                    id={inputId}
-                    value={values[r.key] ?? ""}
-                    onChange={(e) => onChange(r.key, e.target.value)}
-                    inputMode="decimal"
-                    placeholder="0,00"
-                    className="pl-10 text-right"
-                  />
-                </div>
+                <MoneyInput
+                  id={inputId}
+                  currencyLabel="R$"
+                  value={values[r.key] ?? ""}
+                  onValueChange={(formatted) => onChange(r.key, formatted)}
+                  placeholder="0,00"
+                />
               </div>
 
               <Separator />
