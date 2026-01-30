@@ -57,7 +57,7 @@ export type BudgetMonthData = {
   fixedBills: Array<{ id: string; description: string; amount: string }>;
   cardExpenses: Array<{
     id: string;
-    category: BudgetCategory | "";
+    category: string;
     amount: string;
   }>;
   invested: { amount: string };
@@ -170,9 +170,7 @@ function normalizeMonthData(input: unknown): BudgetMonthData {
     Array.isArray(obj["cardExpenses"]) ? obj["cardExpenses"] : []
   ).map((it, idx) => {
     const row: UnknownRecord = isRecord(it) ? it : {};
-    const rawCat = row["category"];
-    const category: BudgetCategory | "" =
-      rawCat === "" ? "" : isOneOf(BUDGET_CATEGORIES, rawCat) ? rawCat : "";
+    const category = str(row["category"]);
 
     return {
       id: str(row["id"]) || `card-${idx + 1}`,

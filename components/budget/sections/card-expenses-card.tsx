@@ -2,7 +2,6 @@
 
 import { Plus } from "lucide-react";
 
-import type { BudgetCategory } from "@/store/app-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +10,7 @@ import { MoneyInput } from "@/components/ui/money-input";
 
 import { formatBRL, parseMoneyBR } from "../budget.constants";
 
-type Item = { id: string; category: BudgetCategory | ""; amount: string };
+type Item = { id: string; category: string; amount: string };
 
 type Props = {
   items: Item[];
@@ -83,9 +82,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
           <div key={it.id} className="grid grid-cols-2 gap-2">
             <Input
               value={it.category}
-              onChange={(e) =>
-                onChange(it.id, { category: e.target.value as BudgetCategory })
-              }
+              onChange={(e) => onChange(it.id, { category: e.target.value })}
               onBlur={() => tryAutoRemove(it)}
               placeholder="Categoria"
             />
