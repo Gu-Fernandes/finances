@@ -36,7 +36,7 @@ export function InvestedCard({ amount, onChangeAmount }: Props) {
   const total = parseMoneyBR(amount);
 
   return (
-    <Card>
+   <Card className="border border-primary ">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">Valor investido</CardTitle>
         <Badge variant="default">{formatBRL(total)}</Badge>
