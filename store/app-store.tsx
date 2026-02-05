@@ -53,6 +53,7 @@ const num = (v: unknown) =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
 
 export type BudgetMonthData = {
+  miscExpenses?: Array<{ id: string; description: string; amount: string }>;
   incomes: Array<{ id: string; label: string; amount: string }>;
   fixedBills: Array<{ id: string; description: string; amount: string }>;
   cardExpenses: Array<{
@@ -111,6 +112,7 @@ export const DEFAULT_BUDGET_MONTH: BudgetMonthData = {
   incomes: [],
   fixedBills: [],
   cardExpenses: [],
+  miscExpenses: [], // ✅ novo
   invested: { amount: "" },
 };
 
@@ -119,6 +121,7 @@ export function createBudgetMonth(): BudgetMonthData {
     incomes: [],
     fixedBills: [],
     cardExpenses: [],
+    miscExpenses: [], // ✅ novo
     invested: { amount: "" },
   };
 }
@@ -179,6 +182,18 @@ function normalizeMonthData(input: unknown): BudgetMonthData {
     };
   });
 
+  // ✅ novo: miscExpenses
+  const miscExpenses = (
+    Array.isArray(obj["miscExpenses"]) ? obj["miscExpenses"] : []
+  ).map((it, idx) => {
+    const row: UnknownRecord = isRecord(it) ? it : {};
+    return {
+      id: str(row["id"]) || `misc-${idx + 1}`,
+      description: str(row["description"]),
+      amount: str(row["amount"]),
+    };
+  });
+
   if (Array.isArray(obj["incomes"])) {
     const incomes = obj["incomes"].map((it, idx) => {
       const row: UnknownRecord = isRecord(it) ? it : {};
@@ -193,6 +208,7 @@ function normalizeMonthData(input: unknown): BudgetMonthData {
       incomes: isOldDefaultIncomeRow(incomes) ? [] : incomes,
       fixedBills,
       cardExpenses,
+      miscExpenses, // ✅ novo
       invested,
     };
   }
@@ -215,6 +231,7 @@ function normalizeMonthData(input: unknown): BudgetMonthData {
     incomes: isOldDefaultIncomeRow(legacyAsArray) ? [] : legacyAsArray,
     fixedBills,
     cardExpenses,
+    miscExpenses, // ✅ novo
     invested,
   };
 }

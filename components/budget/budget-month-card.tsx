@@ -9,6 +9,7 @@ import { FixedBillsCard } from "./sections/fixed-bills-card";
 import { CardExpensesCard } from "./sections/card-expenses-card";
 import { InvestedCard } from "./sections/invested-card";
 import { BudgetSummaryCard } from "./sections/budget-summary-card";
+import { MiscExpensesCard } from "./sections/misc-expenses-card";
 import { parseMoneyBR } from "./budget.constants";
 
 type Props = {
@@ -34,13 +35,20 @@ type Props = {
     id: string,
     patch: Partial<{
       id: string;
-      category: string; // ✅ agora é string
+      category: string;
       amount: string;
     }>,
   ) => void;
   onRemoveCard: (id: string) => void;
 
   onChangeInvestedAmount: (value: string) => void;
+
+  onAddMisc: () => void;
+  onChangeMisc: (
+    id: string,
+    patch: Partial<{ id: string; description: string; amount: string }>,
+  ) => void;
+  onRemoveMisc: (id: string) => void;
 };
 
 export function BudgetMonthCard({
@@ -55,6 +63,9 @@ export function BudgetMonthCard({
   onAddCard,
   onChangeCard,
   onRemoveCard,
+  onAddMisc,
+  onChangeMisc,
+  onRemoveMisc,
   onChangeInvestedAmount,
 }: Props) {
   const incomeTotal = (data.incomes ?? []).reduce(
@@ -72,9 +83,14 @@ export function BudgetMonthCard({
     0,
   );
 
+  const miscTotal = (data.miscExpenses ?? []).reduce(
+    (sum, it) => sum + parseMoneyBR(it.amount),
+    0,
+  );
+
   const investedTotal = parseMoneyBR(data.invested?.amount ?? "");
 
-  const expenseTotal = fixedTotal + cardTotal + investedTotal;
+  const expenseTotal = fixedTotal + cardTotal + miscTotal + investedTotal;
   const netTotal = incomeTotal - expenseTotal;
 
   return (
@@ -111,6 +127,13 @@ export function BudgetMonthCard({
               onAdd={onAddCard}
               onChange={onChangeCard}
               onRemove={onRemoveCard}
+            />
+
+            <MiscExpensesCard
+              items={data.miscExpenses ?? []}
+              onAdd={onAddMisc}
+              onChange={onChangeMisc}
+              onRemove={onRemoveMisc}
             />
 
             <InvestedCard
