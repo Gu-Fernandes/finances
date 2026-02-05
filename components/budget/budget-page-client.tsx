@@ -134,6 +134,31 @@ export function BudgetPageClient() {
             cardExpenses: prev.cardExpenses.filter((it) => it.id !== id),
           }))
         }
+ 
+        onAddMisc={() =>
+          updateMonth(monthKey, (prev) => ({
+            ...prev,
+            miscExpenses: [
+              ...(prev.miscExpenses ?? []),
+              { id: newId(), description: "", amount: "" },
+            ],
+          }))
+        }
+        onChangeMisc={(id, patch) =>
+          updateMonth(monthKey, (prev) => ({
+            ...prev,
+            miscExpenses: (prev.miscExpenses ?? []).map((it) =>
+              it.id === id ? { ...it, ...patch } : it,
+            ),
+          }))
+        }
+        onRemoveMisc={(id) =>
+          updateMonth(monthKey, (prev) => ({
+            ...prev,
+            miscExpenses: (prev.miscExpenses ?? []).filter((it) => it.id !== id),
+          }))
+        }
+
         onChangeInvestedAmount={(v) =>
           updateMonth(monthKey, (prev) => ({
             ...prev,

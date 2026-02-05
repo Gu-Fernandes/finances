@@ -8,6 +8,19 @@ import {
   useAppStore,
 } from "@/store/app-store";
 
+function normalizeMonth(month?: BudgetMonthData): BudgetMonthData {
+  const base = month ?? createBudgetMonth();
+
+  return {
+    ...base,
+    incomes: base.incomes ?? [],
+    fixedBills: base.fixedBills ?? [],
+    cardExpenses: base.cardExpenses ?? [],
+    miscExpenses: base.miscExpenses ?? [], // ✅ novo
+    invested: base.invested ?? { amount: "" },
+  };
+}
+
 export function useBudgetStore() {
   const { data, update } = useAppStore();
 
@@ -21,7 +34,8 @@ export function useBudgetStore() {
   };
 
   const getMonth = (monthKey: string): BudgetMonthData => {
-    return data.budget.months[monthKey] ?? DEFAULT_BUDGET_MONTH;
+    const raw = data.budget.months[monthKey] ?? DEFAULT_BUDGET_MONTH;
+    return normalizeMonth(raw);
   };
 
   const updateMonth = (
@@ -29,10 +43,15 @@ export function useBudgetStore() {
     updater: (prev: BudgetMonthData) => BudgetMonthData,
   ) => {
     update((prev: AppData) => {
-      const current = prev.budget.months[monthKey] ?? createBudgetMonth();
-      const nextMonth = updater(current);
+      const currentRaw = prev.budget.months[monthKey] ?? createBudgetMonth();
+      const current = normalizeMonth(currentRaw);
 
-      if (nextMonth === current) return prev; // no-op
+      const updated = updater(current);
+      const nextMonth = normalizeMonth(updated);
+
+      if (nextMonth === currentRaw) return prev; // no-op (bem raro)
+      // melhor: comparar com current, já normalizado
+      if (nextMonth === current) return prev;
 
       return {
         ...prev,
