@@ -5,20 +5,10 @@ import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
-import {
-  FIXED_BILL_OPTIONS,
-  formatBRL,
-  parseMoneyBR,
-} from "../budget.constants";
+import { formatBRL, parseMoneyBR } from "../budget.constants";
 
 type Item = { id: string; description: string; amount: string };
 
@@ -90,25 +80,12 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
       <CardContent className="space-y-2">
         {items.map((it) => (
           <div key={it.id} className="grid grid-cols-2 gap-2">
-            <Select
+            <Input
               value={it.description}
-              onValueChange={(v) => onChange(it.id, { description: v })}
-            >
-              <SelectTrigger
-                className="w-full"
-                onBlur={() => tryAutoRemove(it)}
-              >
-                <SelectValue placeholder="Conta fixa" />
-              </SelectTrigger>
-
-              <SelectContent>
-                {FIXED_BILL_OPTIONS.map((opt) => (
-                  <SelectItem key={opt} value={opt}>
-                    {opt}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={(e) => onChange(it.id, { description: e.target.value })}
+              onBlur={() => tryAutoRemove(it)}
+              placeholder="Conta fixa"
+            />
 
             <MoneyInput
               value={normalizeMoney(it.amount)}
