@@ -54,7 +54,7 @@ export function MiscExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
       toCentsFromMasked(last.amount) > 0);
 
   return (
-    <Card>
+    <Card className="border border-red-300">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">Gastos diversos</CardTitle>
 

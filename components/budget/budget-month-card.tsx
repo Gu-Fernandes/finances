@@ -99,7 +99,7 @@ export function BudgetMonthCard({
         <CardTitle className="text-lg">{monthLabel}</CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         <BudgetSummaryCard
           incomeTotal={incomeTotal}
           expenseTotal={expenseTotal}
@@ -107,7 +107,7 @@ export function BudgetMonthCard({
           netTotal={netTotal}
         />
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-3">
           <IncomeCard
             items={data.incomes}
             onAdd={onAddIncome}
@@ -122,7 +122,7 @@ export function BudgetMonthCard({
             onRemove={onRemoveFixed}
           />
 
-          <div className="space-y-4">
+          <div className="space-y-8">
             <CardExpensesCard
               items={data.cardExpenses}
               onAdd={onAddCard}
