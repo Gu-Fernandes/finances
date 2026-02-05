@@ -90,8 +90,8 @@ export function BudgetMonthCard({
 
   const investedTotal = parseMoneyBR(data.invested?.amount ?? "");
 
-  const expenseTotal = fixedTotal + cardTotal + miscTotal + investedTotal;
-  const netTotal = incomeTotal - expenseTotal;
+  const expenseTotal = fixedTotal + cardTotal + miscTotal;
+  const netTotal = incomeTotal - (expenseTotal+ investedTotal);
 
   return (
     <Card>
@@ -103,6 +103,7 @@ export function BudgetMonthCard({
         <BudgetSummaryCard
           incomeTotal={incomeTotal}
           expenseTotal={expenseTotal}
+          investedTotal={investedTotal}
           netTotal={netTotal}
         />
 
