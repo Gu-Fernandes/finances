@@ -91,15 +91,15 @@ export function BudgetMonthCard({
   const investedTotal = parseMoneyBR(data.invested?.amount ?? "");
 
   const expenseTotal = fixedTotal + cardTotal + miscTotal;
-  const netTotal = incomeTotal - (expenseTotal+ investedTotal);
+  const netTotal = incomeTotal - (expenseTotal + investedTotal);
 
   return (
-    <Card>
+    <Card className="overflow-hidden rounded-2xl">
       <CardHeader>
-        <CardTitle className="text-lg">{monthLabel}</CardTitle>
+        <CardTitle>{monthLabel}</CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-6 p-3 sm:p-6">
         <BudgetSummaryCard
           incomeTotal={incomeTotal}
           expenseTotal={expenseTotal}
@@ -107,7 +107,7 @@ export function BudgetMonthCard({
           netTotal={netTotal}
         />
 
-        <div className="grid gap-8 md:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           <IncomeCard
             items={data.incomes}
             onAdd={onAddIncome}
@@ -122,7 +122,7 @@ export function BudgetMonthCard({
             onRemove={onRemoveFixed}
           />
 
-          <div className="space-y-8">
+          <div className="space-y-8 md:col-span-2 lg:col-span-1">
             <CardExpensesCard
               items={data.cardExpenses}
               onAdd={onAddCard}

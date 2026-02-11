@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
+import { cn } from "@/lib/utils";
 
 import { formatBRL, parseMoneyBR } from "../budget.constants";
 
@@ -36,15 +37,39 @@ export function InvestedCard({ amount, onChangeAmount }: Props) {
   const total = parseMoneyBR(amount);
 
   return (
-   <Card className="border border-primary ">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Valor investido</CardTitle>
-        <Badge variant="default">{formatBRL(total)}</Badge>
+    <Card
+      className={cn(
+        "group relative overflow-hidden rounded-2xl",
+        "transition-all hover:-translate-y-0.5 hover:shadow-md",
+        "hover:border-primary/20",
+      )}
+    >
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 opacity-0 transition-opacity",
+          "group-hover:opacity-100",
+          "bg-gradient-to-br from-violet-500/15 via-transparent to-transparent",
+        )}
+      />
+
+      <CardHeader className="relative space-y-2 pb-3 pt-4">
+        <div className="flex items-center gap-2">
+          <span className="grid size-9 place-items-center rounded-xl bg-muted ring-1 ring-border">
+            🏦
+          </span>
+          <CardTitle className="text-base">Valor investido</CardTitle>
+        </div>
+
+        <div className="flex justify-center">
+          <Badge variant="outline" className="border-primary/30 text-primary">
+            {formatBRL(total)}
+          </Badge>
+        </div>
       </CardHeader>
 
-      <CardContent>
-        <div className="grid grid-cols-2 items-center gap-2">
-          <Label className="text-sm text-muted-foreground border p-2 rounded-md">
+      <CardContent className="relative pb-4">
+        <div className="grid gap-2 sm:grid-cols-2 sm:items-center">
+          <Label className="text-sm text-muted-foreground">
             Total guardado
           </Label>
 

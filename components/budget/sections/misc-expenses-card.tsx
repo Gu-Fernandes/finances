@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
+import { cn } from "@/lib/utils";
 
 import { formatBRL, parseMoneyBR } from "../budget.constants";
 
@@ -43,7 +44,6 @@ export function MiscExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
   function tryAutoRemove(it: Item) {
     const emptyDesc = (it.description ?? "").trim().length === 0;
     const emptyAmount = toCentsFromMasked(it.amount) === 0;
-
     if (emptyDesc && emptyAmount) onRemove(it.id);
   }
 
@@ -54,16 +54,33 @@ export function MiscExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
       toCentsFromMasked(last.amount) > 0);
 
   return (
-    <Card className="border border-red-300">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Gastos diversos</CardTitle>
+    <Card
+      className={cn(
+        "group relative overflow-hidden rounded-2xl",
+        "transition-all hover:-translate-y-0.5 hover:shadow-md",
+        "hover:border-primary/20",
+      )}
+    >
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 opacity-0 transition-opacity",
+          "group-hover:opacity-100",
+          "bg-gradient-to-br from-amber-500/15 via-transparent to-transparent",
+        )}
+      />
 
-        <div className="flex items-center gap-5">
-          <Badge variant="destructive">{formatBRL(total)}</Badge>
+      <CardHeader className="relative space-y-2 pb-3 pt-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="grid size-9 place-items-center rounded-xl bg-muted ring-1 ring-border">
+              🧯
+            </span>
+            <CardTitle className="text-base">Gastos diversos</CardTitle>
+          </div>
 
           <Button
             type="button"
-            variant="default"
+            variant="secondary"
             size="icon-sm"
             onClick={() => {
               if (!canAdd) return;
@@ -75,27 +92,43 @@ export function MiscExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
             <Plus />
           </Button>
         </div>
+
+        <div className="flex justify-center">
+          <Badge
+            variant="outline"
+            className="border-destructive/30 text-destructive"
+          >
+            {formatBRL(total)}
+          </Badge>
+        </div>
       </CardHeader>
 
-      <CardContent className="space-y-2">
+      <CardContent className="relative space-y-8 pb-4">
         {items.map((it) => (
-          <div key={it.id} className="grid grid-cols-2 gap-2">
-            <Input
-              value={it.description}
-              onChange={(e) => onChange(it.id, { description: e.target.value })}
-              onBlur={() => tryAutoRemove(it)}
-              placeholder="Descrição"
-            />
+          <div
+            key={it.id}
+            className="rounded-xl border-b bg-background/50 p-3 shadow-sm"
+          >
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Input
+                value={it.description}
+                onChange={(e) =>
+                  onChange(it.id, { description: e.target.value })
+                }
+                onBlur={() => tryAutoRemove(it)}
+                placeholder="Descrição"
+              />
 
-            <MoneyInput
-              value={normalizeMoney(it.amount)}
-              onChange={(e) =>
-                onChange(it.id, { amount: normalizeMoney(e.target.value) })
-              }
-              onBlur={() => tryAutoRemove(it)}
-              inputMode="decimal"
-              placeholder="0,00"
-            />
+              <MoneyInput
+                value={normalizeMoney(it.amount)}
+                onChange={(e) =>
+                  onChange(it.id, { amount: normalizeMoney(e.target.value) })
+                }
+                onBlur={() => tryAutoRemove(it)}
+                inputMode="decimal"
+                placeholder="0,00"
+              />
+            </div>
           </div>
         ))}
       </CardContent>

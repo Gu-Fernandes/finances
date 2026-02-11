@@ -18,10 +18,10 @@ type Props = {
 
 export function BudgetMonthSelect({ value, year, onChange }: Props) {
   return (
-    <div className="flex items-center gap-5">
-      <Label className="text-muted-foreground">Selecione um mês</Label>
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <Label className="text-sm text-muted-foreground">Selecione um mês</Label>
 
-      <div className="max-w-sm">
+      <div className="w-full sm:max-w-xs">
         <Select value={value} onValueChange={onChange}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Selecione o mês" />

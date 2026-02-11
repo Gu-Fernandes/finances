@@ -36,26 +36,34 @@ export function BudgetPageClient() {
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-4">
-      <header className="flex items-center justify-between gap-1">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Orçamento</h1>
-          <p className="text-sm text-muted-foreground">
-            Controle receitas, contas fixas e gastos com cartão.
-          </p>
+      {/* Hero / Cabeçalho */}
+      <header className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-background to-background p-6 sm:p-8">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+
+        <div className="relative flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight">Orçamento</h1>
+            <p className="text-sm text-muted-foreground">
+              Controle receitas, contas fixas e gastos com cartão.
+            </p>
+          </div>
+
+          <Button variant="outline" size="icon-sm" asChild>
+            <Link href="/" aria-label="Voltar">
+              <ArrowLeft />
+            </Link>
+          </Button>
         </div>
 
-        <Button variant="outline" size="icon-sm" asChild>
-          <Link href="/" aria-label="Voltar">
-            <ArrowLeft />
-          </Link>
-        </Button>
+        {/* Toolbar do mês */}
+        <div className="relative mt-6 rounded-2xl border bg-background/60 p-4 backdrop-blur">
+          <BudgetMonthSelect
+            value={monthKey}
+            year={year}
+            onChange={setSelectedMonthKey}
+          />
+        </div>
       </header>
-
-      <BudgetMonthSelect
-        value={monthKey}
-        year={year}
-        onChange={setSelectedMonthKey}
-      />
 
       <BudgetMonthCard
         monthLabel={`${monthLabel} / ${year}`}
@@ -134,7 +142,6 @@ export function BudgetPageClient() {
             cardExpenses: prev.cardExpenses.filter((it) => it.id !== id),
           }))
         }
- 
         onAddMisc={() =>
           updateMonth(monthKey, (prev) => ({
             ...prev,
@@ -155,10 +162,11 @@ export function BudgetPageClient() {
         onRemoveMisc={(id) =>
           updateMonth(monthKey, (prev) => ({
             ...prev,
-            miscExpenses: (prev.miscExpenses ?? []).filter((it) => it.id !== id),
+            miscExpenses: (prev.miscExpenses ?? []).filter(
+              (it) => it.id !== id,
+            ),
           }))
         }
-
         onChangeInvestedAmount={(v) =>
           updateMonth(monthKey, (prev) => ({
             ...prev,
