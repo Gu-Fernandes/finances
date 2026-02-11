@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -7,19 +8,24 @@ type RouteCardProps = {
   title: string;
   description: string;
   href: string;
-  cta: string; // mantido por compatibilidade
-  icon?: string;
+  cta: string;
+  icon?: LucideIcon;
   hint?: string;
   accentClass?: string;
+
+  iconBgClass?: string;
+  iconColorClass?: string;
 };
 
 export function RouteCard({
   title,
   description,
   href,
-  icon,
+  icon: Icon,
   hint,
   accentClass,
+  iconBgClass,
+  iconColorClass,
 }: RouteCardProps) {
   return (
     <Link
@@ -46,25 +52,28 @@ export function RouteCard({
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                {icon ? (
+                {Icon ? (
                   <span
                     className={cn(
-                      "grid size-9 place-items-center rounded-xl bg-muted ring-1 ring-border",
-                      "transition-transform group-hover:-translate-y-0.5",
+                      "grid size-9 place-items-center rounded-xl ring-1 ring-border",
+                      "transition-colors",
+                      iconBgClass ?? "bg-muted",
                     )}
                   >
-                    {icon}
+                    <Icon
+                      className={cn(
+                        "size-5 text-muted-foreground transition-colors",
+                        iconColorClass,
+                        "group-hover:text-foreground/80",
+                      )}
+                    />
                   </span>
                 ) : null}
 
-                <p className="line-clamp-1 font-semibold leading-none">
-                  {title}
-                </p>
+                <p className="font-semibold leading-none">{title}</p>
               </div>
 
-              <p className="line-clamp-2 text-sm text-muted-foreground">
-                {description}
-              </p>
+              <p className="text-sm text-muted-foreground">{description}</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -74,7 +83,7 @@ export function RouteCard({
                 </span>
               ) : null}
 
-              <span className="text-primary/70 transition-all group-hover:text-primary group-hover:translate-x-1">
+              <span className="text-primary/80 transition-all group-hover:translate-x-0.5 group-hover:text-primary">
                 →
               </span>
             </div>
