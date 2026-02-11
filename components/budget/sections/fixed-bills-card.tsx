@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { CalendarCheck2, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,7 +111,7 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="grid size-9 place-items-center rounded-xl bg-muted ring-1 ring-border">
-              🧾
+              <CalendarCheck2 className="size-5 text-muted-foreground" />
             </span>
             <CardTitle className="text-base">Contas fixas</CardTitle>
           </div>
