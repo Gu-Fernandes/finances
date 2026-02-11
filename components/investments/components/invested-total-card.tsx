@@ -112,6 +112,7 @@ export function InvestedTotalCard({ variant = "card" }: Props) {
       cryptoCurrent +
       stocksCurrent;
 
+    // lucro/perda incluindo dividendos recebidos
     const totalProfitCents =
       totalCurrentCents - totalAppliedCents + stocksDividends;
 
@@ -121,25 +122,25 @@ export function InvestedTotalCard({ variant = "card" }: Props) {
   const meta = getProfitBadgeMeta(totals.totalProfitCents);
 
   const content = (
-    <div className="space-y-3">
-      <div className="flex items-end justify-between">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Total investido</p>
-          <p className="text-2xl font-semibold tracking-tight">
-            {ready ? formatBRLFromCents(totals.totalCurrentCents) : "—"}
-          </p>
-        </div>
+    <div className="space-y-3 text-center">
+      <p className="text-sm text-muted-foreground">Total investido</p>
 
-        {ready && (
-          <div className="space-y-1 text-right">
-            <p className="text-sm text-muted-foreground">Ganhos / Perdas</p>
+      <p className="mx-auto max-w-full px-2 text-2xl font-semibold tracking-tight leading-tight break-words tabular-nums">
+        {ready ? formatBRLFromCents(totals.totalCurrentCents) : "—"}
+      </p>
+
+      {ready && (
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">Ganhos / Perdas</p>
+
+          <div className="flex flex-wrap justify-center gap-2">
             <Badge variant={meta.variant} className="gap-1">
               <meta.Icon className="h-4 w-4" />
               {formatBRLFromCents(totals.totalProfitCents)}
             </Badge>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 

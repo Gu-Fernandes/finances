@@ -393,10 +393,6 @@ export function StocksTab() {
 
                         {/* Posição */}
                         <div className="space-y-3">
-                          <p className="text-xs font-medium text-muted-foreground">
-                            Posição
-                          </p>
-
                           <FieldRow label="Quantidade">
                             <Input
                               value={it.quantity}
@@ -455,10 +451,6 @@ export function StocksTab() {
 
                         {/* Dividendos */}
                         <div className="space-y-3">
-                          <p className="text-xs font-medium text-muted-foreground">
-                            Dividendos
-                          </p>
-
                           <FieldRow label="Dividendos">
                             <MoneyInput
                               value={formatInputFromCents(
