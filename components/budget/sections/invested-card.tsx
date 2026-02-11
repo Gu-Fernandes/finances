@@ -35,7 +35,11 @@ function normalizeMoney(raw: string) {
 }
 
 export function InvestedCard({ amount, onChangeAmount }: Props) {
+  // mantém “investido” para gradiente/ícone
   const ui = BUDGET_UI.invested;
+
+  // usa “receitas” para os valores (verde)
+  const moneyUi = BUDGET_UI.income;
 
   const total = useMemo(() => parseMoneyBR(amount), [amount]);
 
@@ -91,8 +95,9 @@ export function InvestedCard({ amount, onChangeAmount }: Props) {
           </div>
         </div>
 
+        {/* ✅ badge verde (igual Receitas) */}
         <div className="flex justify-center">
-          <Badge variant="outline" className={cn(ui.badgeOutline)}>
+          <Badge variant="outline" className={cn(moneyUi.badgeOutline)}>
             {formatBRL(total)}
           </Badge>
         </div>
@@ -115,8 +120,10 @@ export function InvestedCard({ amount, onChangeAmount }: Props) {
             <div className="grid gap-2 sm:grid-cols-2 sm:items-center">
               <p className="text-sm text-muted-foreground">Total guardado</p>
 
+              {/* ✅ valor do input verde */}
               <MoneyInput
                 ref={inputRef}
+                className={cn("font-semibold text-primary")}
                 value={normalizeMoney(amount)}
                 onChange={(e) => onChangeAmount(normalizeMoney(e.target.value))}
                 inputMode="decimal"
@@ -135,7 +142,9 @@ export function InvestedCard({ amount, onChangeAmount }: Props) {
                 Total guardado
               </p>
 
-              <p className={cn("shrink-0 text-sm font-semibold", ui.iconText)}>
+              <p
+                className={cn("shrink-0 text-sm font-semibold", moneyUi.value)}
+              >
                 {formatBRL(total)}
               </p>
             </div>

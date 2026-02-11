@@ -169,6 +169,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     ref={catRef}
+                    className="font-medium"
                     value={it.category}
                     onChange={(e) =>
                       onChange(it.id, { category: e.target.value })
@@ -178,6 +179,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
 
                   <MoneyInput
                     ref={amountRef}
+                    className={cn("font-semibold caret-current", ui.value)}
                     value={normalizeMoney(it.amount)}
                     onChange={(e) =>
                       onChange(it.id, {

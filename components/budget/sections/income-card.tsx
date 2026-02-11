@@ -169,6 +169,7 @@ export function IncomeCard({ items = [], onAdd, onChange, onRemove }: Props) {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     ref={labelRef}
+                    className="font-medium"
                     value={it.label}
                     onChange={(e) => onChange(it.id, { label: e.target.value })}
                     placeholder="Descrição"
@@ -176,6 +177,7 @@ export function IncomeCard({ items = [], onAdd, onChange, onRemove }: Props) {
 
                   <MoneyInput
                     ref={amountRef}
+                    className={cn("font-semibold caret-current", ui.value)}
                     value={normalizeMoney(it.amount)}
                     onChange={(e) =>
                       onChange(it.id, {
