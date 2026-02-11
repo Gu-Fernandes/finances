@@ -20,12 +20,38 @@ const TABS: Array<{
   key: TabKey;
   label: string;
   icon: ElementType;
+  iconClassName: string;
 }> = [
-  { key: "stocks", label: "Ações", icon: LineChart },
-  { key: "fixedIncome", label: "Renda fixa", icon: PiggyBank },
-  { key: "funds", label: "Fundos", icon: Briefcase },
-  { key: "treasury", label: "Tesouro direto", icon: Vault },
-  { key: "cripto", label: "Criptomoedas", icon: Bitcoin },
+  {
+    key: "stocks",
+    label: "Ações",
+    icon: LineChart,
+    iconClassName: "text-emerald-600 dark:text-emerald-500",
+  },
+  {
+    key: "fixedIncome",
+    label: "Renda fixa",
+    icon: PiggyBank,
+    iconClassName: "text-sky-600 dark:text-sky-500",
+  },
+  {
+    key: "funds",
+    label: "Fundos",
+    icon: Briefcase,
+    iconClassName: "text-violet-600 dark:text-violet-500",
+  },
+  {
+    key: "treasury",
+    label: "Tesouro direto",
+    icon: Vault,
+    iconClassName: "text-amber-600 dark:text-amber-500",
+  },
+  {
+    key: "cripto",
+    label: "Criptomoedas",
+    icon: Bitcoin,
+    iconClassName: "text-orange-600 dark:text-orange-500",
+  },
 ];
 
 function isTabKey(v: unknown): v is TabKey {
@@ -47,7 +73,7 @@ function safeGetStoredTab(): TabKey {
   }
 }
 
-// ------- mini store (localStorage) + external store -------
+// mini store (localStorage) + external store
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -57,7 +83,6 @@ function emit() {
 function subscribe(listener: () => void) {
   listeners.add(listener);
 
-  // se outra aba/janela mudar, atualiza também
   const onStorage = (e: StorageEvent) => {
     if (e.key === ACTIVE_TAB_STORAGE_KEY) emit();
   };
@@ -75,7 +100,7 @@ function getSnapshot(): TabKey {
 }
 
 function getServerSnapshot(): TabKey {
-  return DEFAULT_TAB; // SSR estável
+  return DEFAULT_TAB;
 }
 
 function setActiveTab(next: TabKey) {
@@ -84,9 +109,8 @@ function setActiveTab(next: TabKey) {
   } catch {
     // sem crash
   }
-  emit(); // mesma aba atualiza na hora
+  emit();
 }
-// ---------------------------------------------------------
 
 export function InvestmentsTabsCard() {
   const active = useSyncExternalStore(
@@ -118,7 +142,12 @@ export function InvestmentsTabsCard() {
         <div
           role="tablist"
           aria-label="Categorias de investimentos"
-          className="flex gap-2 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch] md:overflow-visible md:pb-0"
+          className={[
+            "flex gap-2 overflow-x-auto pb-2",
+            "[-webkit-overflow-scrolling:touch]",
+            // esconde scrollbar (cara de app)
+            "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
+          ].join(" ")}
         >
           {TABS.map((tab) => (
             <InvestmentsTabButton
@@ -126,6 +155,7 @@ export function InvestmentsTabsCard() {
               active={tab.key === active}
               label={tab.label}
               icon={tab.icon}
+              iconClassName={tab.iconClassName}
               onClick={() => setActiveTab(tab.key)}
             />
           ))}

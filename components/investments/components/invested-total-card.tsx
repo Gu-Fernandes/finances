@@ -1,16 +1,17 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp } from "lucide-react";
-
-import Link from "next/link";
+import { ArrowDown, ArrowUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useInvestmentsStore } from "@/store/investments.store";
 
 import { formatBRLFromCents } from "./utils/money";
+
+type Props = {
+  variant?: "card" | "inline";
+};
 
 function parseQty(raw: string) {
   const v = (raw ?? "").trim();
@@ -40,7 +41,7 @@ function getProfitBadgeMeta(profitCents: number) {
   };
 }
 
-export function InvestedTotalCard() {
+export function InvestedTotalCard({ variant = "card" }: Props) {
   const { ready, fixedIncome, funds, treasuryDirect, crypto, stocks } =
     useInvestmentsStore();
 
@@ -91,7 +92,7 @@ export function InvestedTotalCard() {
       return acc + Math.round((it.currentQuoteCents || 0) * qty);
     }, 0);
 
-    // ✅ soma de dividendos (Total dividendos = dividendCents * meses)
+    // soma de dividendos (dividendCents * meses)
     const stocksDividends = stocks.reduce((acc, it) => {
       const months = parseIntSafe(it.dividendMonths ?? "");
       return acc + (it.dividendCents || 0) * months;
@@ -111,7 +112,6 @@ export function InvestedTotalCard() {
       cryptoCurrent +
       stocksCurrent;
 
-    // ✅ lucro/perda incluindo dividendos recebidos
     const totalProfitCents =
       totalCurrentCents - totalAppliedCents + stocksDividends;
 
@@ -120,31 +120,19 @@ export function InvestedTotalCard() {
 
   const meta = getProfitBadgeMeta(totals.totalProfitCents);
 
-  return (
-    <Card className="p-5">
-      <div className="space-y-3">
-        <div className="relative flex items-center">
-          <Button asChild variant="outline" size="icon-sm">
-            <Link href="/" aria-label="Voltar">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-
-          <p className="absolute left-1/2 -translate-x-1/2 text-sm text-muted-foreground">
-            Total investido
-          </p>
-        </div>
-
-        <div className="text-center">
-          <p className="text-2xl font-semibold">
+  const content = (
+    <div className="space-y-3">
+      <div className="flex items-end justify-between">
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">Total investido</p>
+          <p className="text-2xl font-semibold tracking-tight">
             {ready ? formatBRLFromCents(totals.totalCurrentCents) : "—"}
           </p>
         </div>
 
         {ready && (
-          <div className="flex w-full items-center justify-between gap-3 px-6 sm:px-10">
+          <div className="space-y-1 text-right">
             <p className="text-sm text-muted-foreground">Ganhos / Perdas</p>
-
             <Badge variant={meta.variant} className="gap-1">
               <meta.Icon className="h-4 w-4" />
               {formatBRLFromCents(totals.totalProfitCents)}
@@ -152,6 +140,9 @@ export function InvestedTotalCard() {
           </div>
         )}
       </div>
-    </Card>
+    </div>
   );
+
+  if (variant === "inline") return content;
+  return <Card className="p-5">{content}</Card>;
 }
