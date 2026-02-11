@@ -11,6 +11,7 @@ import { MoneyInput } from "@/components/ui/money-input";
 import { cn } from "@/lib/utils";
 
 import { formatBRL, parseMoneyBR } from "../budget.constants";
+import { BUDGET_UI } from "../budget.ui";
 
 type Item = { id: string; description: string; amount: string };
 
@@ -40,6 +41,8 @@ function normalizeMoney(raw: string) {
 }
 
 export function MiscExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
+  const ui = BUDGET_UI.expense;
+
   const total = useMemo(
     () => items.reduce((sum, it) => sum + parseMoneyBR(it.amount), 0),
     [items],
@@ -103,16 +106,24 @@ export function MiscExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
         className={cn(
           "pointer-events-none absolute inset-0 opacity-0 transition-opacity",
           "group-hover:opacity-100",
-          "bg-gradient-to-br from-amber-500/15 via-transparent to-transparent",
+          "bg-gradient-to-br",
+          ui.gradientFrom,
+          "via-transparent to-transparent",
         )}
       />
 
       <CardHeader className="relative space-y-2 pb-3 pt-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="grid size-9 place-items-center rounded-xl bg-muted ring-1 ring-border">
-              <Sparkles className="size-5 text-muted-foreground" />
+            <span
+              className={cn(
+                "grid size-9 place-items-center rounded-xl ring-1 ring-border",
+                ui.iconBg,
+              )}
+            >
+              <Sparkles className={cn("size-5", ui.iconText)} />
             </span>
+
             <CardTitle className="text-base">Gastos diversos</CardTitle>
           </div>
 
@@ -129,10 +140,7 @@ export function MiscExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
         </div>
 
         <div className="flex justify-center">
-          <Badge
-            variant="outline"
-            className="border-destructive/30 text-destructive"
-          >
+          <Badge variant="outline" className={cn(ui.badgeOutline)}>
             {formatBRL(total)}
           </Badge>
         </div>
@@ -206,7 +214,7 @@ export function MiscExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
 
                 <p
                   data-field="amount"
-                  className="shrink-0 text-sm font-semibold text-destructive"
+                  className={cn("shrink-0 text-sm font-semibold", ui.value)}
                 >
                   {value}
                 </p>

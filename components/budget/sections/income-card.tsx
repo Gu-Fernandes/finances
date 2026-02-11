@@ -11,6 +11,7 @@ import { MoneyInput } from "@/components/ui/money-input";
 import { cn } from "@/lib/utils";
 
 import { formatBRL, parseMoneyBR } from "../budget.constants";
+import { BUDGET_UI } from "../budget.ui";
 
 type Item = { id: string; label: string; amount: string };
 
@@ -40,6 +41,8 @@ function normalizeMoney(raw: string) {
 }
 
 export function IncomeCard({ items = [], onAdd, onChange, onRemove }: Props) {
+  const ui = BUDGET_UI.income;
+
   const total = useMemo(
     () => items.reduce((sum, it) => sum + parseMoneyBR(it.amount), 0),
     [items],
@@ -70,7 +73,6 @@ export function IncomeCard({ items = [], onAdd, onChange, onRemove }: Props) {
     setPendingAdd(true);
   }
 
-  // quando adicionar, coloca o último item em edição
   useEffect(() => {
     if (!pendingAdd) return;
     const newest = items[items.length - 1];
@@ -81,7 +83,6 @@ export function IncomeCard({ items = [], onAdd, onChange, onRemove }: Props) {
     setPendingAdd(false);
   }, [pendingAdd, items]);
 
-  // foca no campo certo quando entra em edição
   useEffect(() => {
     if (!editingId) return;
 
@@ -105,16 +106,24 @@ export function IncomeCard({ items = [], onAdd, onChange, onRemove }: Props) {
         className={cn(
           "pointer-events-none absolute inset-0 opacity-0 transition-opacity",
           "group-hover:opacity-100",
-          "bg-gradient-to-br from-emerald-500/15 via-transparent to-transparent",
+          "bg-gradient-to-br",
+          ui.gradientFrom,
+          "via-transparent to-transparent",
         )}
       />
 
       <CardHeader className="relative space-y-2 pb-3 pt-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="grid size-9 place-items-center rounded-xl bg-muted ring-1 ring-border">
-              <HandCoins className="size-5 text-muted-foreground" />
+            <span
+              className={cn(
+                "grid size-9 place-items-center rounded-xl ring-1 ring-border",
+                ui.iconBg,
+              )}
+            >
+              <HandCoins className={cn("size-5", ui.iconText)} />
             </span>
+
             <CardTitle className="text-base">Receitas</CardTitle>
           </div>
 
@@ -131,7 +140,7 @@ export function IncomeCard({ items = [], onAdd, onChange, onRemove }: Props) {
         </div>
 
         <div className="flex justify-center">
-          <Badge variant="outline" className="border-primary/30 text-primary">
+          <Badge variant="outline" className={cn(ui.badgeOutline)}>
             {formatBRL(total)}
           </Badge>
         </div>
@@ -154,9 +163,7 @@ export function IncomeCard({ items = [], onAdd, onChange, onRemove }: Props) {
                   setEditingId(null);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    setEditingId(null);
-                  }
+                  if (e.key === "Escape") setEditingId(null);
                 }}
               >
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -205,7 +212,7 @@ export function IncomeCard({ items = [], onAdd, onChange, onRemove }: Props) {
 
                 <p
                   data-field="amount"
-                  className="shrink-0 text-sm font-semibold text-primary"
+                  className={cn("shrink-0 text-sm font-semibold", ui.value)}
                 >
                   {value}
                 </p>

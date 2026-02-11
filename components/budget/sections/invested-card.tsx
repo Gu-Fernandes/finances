@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Landmark } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { MoneyInput } from "@/components/ui/money-input";
 import { cn } from "@/lib/utils";
 
 import { formatBRL, parseMoneyBR } from "../budget.constants";
-import { Landmark } from "lucide-react";
+import { BUDGET_UI } from "../budget.ui";
 
 type Props = {
   amount: string;
@@ -34,6 +35,8 @@ function normalizeMoney(raw: string) {
 }
 
 export function InvestedCard({ amount, onChangeAmount }: Props) {
+  const ui = BUDGET_UI.invested;
+
   const total = useMemo(() => parseMoneyBR(amount), [amount]);
 
   const [editing, setEditing] = useState(false);
@@ -50,7 +53,6 @@ export function InvestedCard({ amount, onChangeAmount }: Props) {
   }, [editing]);
 
   function finishEdit() {
-    // se ficou "zero", mantém vazio (fica mais clean)
     if (toCentsFromMasked(amount) === 0) onChangeAmount("");
     setEditing(false);
   }
@@ -67,20 +69,30 @@ export function InvestedCard({ amount, onChangeAmount }: Props) {
         className={cn(
           "pointer-events-none absolute inset-0 opacity-0 transition-opacity",
           "group-hover:opacity-100",
-          "bg-gradient-to-br from-violet-500/15 via-transparent to-transparent",
+          "bg-gradient-to-br",
+          ui.gradientFrom,
+          "via-transparent to-transparent",
         )}
       />
 
       <CardHeader className="relative space-y-2 pb-3 pt-4">
-        <div className="flex items-center gap-2">
-          <span className="grid size-9 place-items-center rounded-xl bg-muted ring-1 ring-border">
-            <Landmark className="size-5 text-muted-foreground" />
-          </span>
-          <CardTitle className="text-base">Valor investido</CardTitle>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "grid size-9 place-items-center rounded-xl ring-1 ring-border",
+                ui.iconBg,
+              )}
+            >
+              <Landmark className={cn("size-5", ui.iconText)} />
+            </span>
+
+            <CardTitle className="text-base">Investido</CardTitle>
+          </div>
         </div>
 
         <div className="flex justify-center">
-          <Badge variant="outline" className="border-primary/30 text-primary">
+          <Badge variant="outline" className={cn(ui.badgeOutline)}>
             {formatBRL(total)}
           </Badge>
         </div>
@@ -123,7 +135,7 @@ export function InvestedCard({ amount, onChangeAmount }: Props) {
                 Total guardado
               </p>
 
-              <p className="shrink-0 text-sm font-semibold text-primary">
+              <p className={cn("shrink-0 text-sm font-semibold", ui.iconText)}>
                 {formatBRL(total)}
               </p>
             </div>

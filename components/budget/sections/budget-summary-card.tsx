@@ -1,9 +1,12 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
+import { CreditCard, HandCoins, Landmark, Wallet } from "lucide-react";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatBRL } from "../budget.constants";
-import { HandCoins, CreditCard, Landmark, Wallet } from "lucide-react";
+import { BUDGET_UI } from "../budget.ui";
 
 type Props = {
   incomeTotal: number;
@@ -22,7 +25,7 @@ function Stat({
 }: {
   label: string;
   value: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   iconBgClass: string;
   iconColorClass: string;
   valueClass?: string;
@@ -70,35 +73,35 @@ export function BudgetSummaryCard({
           label="Receitas"
           value={formatBRL(incomeTotal)}
           icon={HandCoins}
-          iconBgClass="bg-emerald-500/10"
-          iconColorClass="text-emerald-600 dark:text-emerald-400"
-          valueClass="text-primary"
+          iconBgClass={BUDGET_UI.income.iconBg}
+          iconColorClass={BUDGET_UI.income.iconText}
+          valueClass={BUDGET_UI.income.value}
         />
 
         <Stat
           label="Despesas"
           value={formatBRL(expenseTotal)}
           icon={CreditCard}
-          iconBgClass="bg-rose-500/10"
-          iconColorClass="text-rose-600 dark:text-rose-400"
-          valueClass="text-destructive"
+          iconBgClass={BUDGET_UI.expense.iconBg}
+          iconColorClass={BUDGET_UI.expense.iconText}
+          valueClass={BUDGET_UI.expense.value}
         />
 
         <Stat
           label="Investido"
           value={formatBRL(investedTotal)}
           icon={Landmark}
-          iconBgClass="bg-violet-500/10"
-          iconColorClass="text-violet-600 dark:text-violet-400"
-          valueClass="text-muted-foreground"
+          iconBgClass={BUDGET_UI.invested.iconBg}
+          iconColorClass={BUDGET_UI.invested.iconText}
+          valueClass={BUDGET_UI.invested.value}
         />
 
         <Stat
           label="Líquido"
           value={formatBRL(netTotal)}
           icon={Wallet}
-          iconBgClass="bg-sky-500/10"
-          iconColorClass="text-sky-600 dark:text-sky-400"
+          iconBgClass={BUDGET_UI.net.iconBg}
+          iconColorClass={BUDGET_UI.net.iconText}
           valueClass={netValueClass}
         />
       </CardContent>
