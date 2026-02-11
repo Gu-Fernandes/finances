@@ -67,7 +67,7 @@ export function BudgetSummaryCard({
         : "text-muted-foreground";
 
   return (
-    <Card className="overflow-hidden rounded-2xl bg-muted/10 shadow-none">
+    <Card className="overflow-hidden rounded-2xl shadow-sm">
       <CardContent className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-4 sm:p-4">
         <Stat
           label="Receitas"
