@@ -5,9 +5,9 @@ import { formatBRL } from "../budget.constants";
 
 type Props = {
   incomeTotal: number;
-  expenseTotal: number; // ✅ sem investido
-  investedTotal: number; // ✅ novo
-  netTotal: number; // ✅ receitas - (despesas + investido)
+  expenseTotal: number;
+  investedTotal: number;
+  netTotal: number;
 };
 
 export function BudgetSummaryCard({
