@@ -303,29 +303,33 @@ export function PiggyBankTable() {
   const baseKey = selectedMonthKey || currentMonthKey;
   const year = baseKey.slice(0, 4);
 
-  const rows: Row[] = useMemo(() => {
-    let total = 0;
+  const { rows, total, filledMonths } = useMemo(() => {
+    return MONTHS.reduce(
+      (acc, m, idx) => {
+        const monthKey = `${year}-${m.value}`;
+        const amount = getMonth(monthKey).invested.amount ?? "";
 
-    return MONTHS.map((m, idx) => {
-      const monthKey = `${year}-${m.value}`;
-      const amount = getMonth(monthKey).invested.amount ?? "";
+        const saved = parseMoneyBR(amount);
+        const nextTotal = acc.total + saved;
 
-      const saved = parseMoneyBR(amount);
-      total += saved;
+        const row: Row = {
+          index: idx + 1,
+          label: m.label,
+          monthKey,
+          amount,
+          saved,
+          total: nextTotal,
+        };
 
-      return {
-        index: idx + 1,
-        label: m.label,
-        monthKey,
-        amount,
-        saved,
-        total,
-      };
-    });
+        return {
+          total: nextTotal,
+          filledMonths: acc.filledMonths + (saved > 0 ? 1 : 0),
+          rows: [...acc.rows, row],
+        };
+      },
+      { total: 0, filledMonths: 0, rows: [] as Row[] },
+    );
   }, [getMonth, year]);
-
-  const total = rows.at(-1)?.total ?? 0;
-  const filledMonths = rows.filter((r) => r.saved > 0).length;
 
   const handleChange = useCallback(
     (monthKey: string, value: string) => {

@@ -22,23 +22,21 @@ type Props = {
   onRemove: (id: string) => void;
 };
 
-function toCentsFromMasked(value: string) {
+const EDIT_LAST = "__EDIT_LAST__";
+
+const toCentsFromMasked = (value: string) => {
   const digits = value.replace(/\D/g, "");
   return digits ? Number(digits) : 0;
-}
+};
 
-function formatInputFromCents(cents: number) {
+const normalizeMoney = (raw: string) => {
+  const cents = toCentsFromMasked(raw);
   if (!cents) return "";
   return new Intl.NumberFormat("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(cents / 100);
-}
-
-function normalizeMoney(raw: string) {
-  const cents = toCentsFromMasked(raw);
-  return formatInputFromCents(cents);
-}
+};
 
 export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
   const ui = BUDGET_UI.expense;
@@ -50,38 +48,30 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [focusField, setFocusField] = useState<"desc" | "amount">("desc");
-  const [pendingAdd, setPendingAdd] = useState(false);
 
   const descRef = useRef<HTMLInputElement | null>(null);
   const amountRef = useRef<HTMLInputElement | null>(null);
 
-  function tryAutoRemove(it: Item) {
-    const emptyDesc = (it.description ?? "").trim().length === 0;
-    const emptyAmount = toCentsFromMasked(it.amount) === 0;
-    if (emptyDesc && emptyAmount) onRemove(it.id);
-  }
+  const last = items.at(-1);
+  const lastId = last?.id;
 
-  const last = items[items.length - 1];
   const canAdd =
-    items.length === 0 ||
+    !last ||
     ((last.description ?? "").trim().length > 0 &&
       toCentsFromMasked(last.amount) > 0);
 
-  function handleAdd() {
+  const tryAutoRemove = (it: Item) => {
+    const emptyDesc = (it.description ?? "").trim().length === 0;
+    const emptyAmount = toCentsFromMasked(it.amount) === 0;
+    if (emptyDesc && emptyAmount) onRemove(it.id);
+  };
+
+  const handleAdd = () => {
     if (!canAdd) return;
     onAdd();
-    setPendingAdd(true);
-  }
-
-  useEffect(() => {
-    if (!pendingAdd) return;
-    const newest = items[items.length - 1];
-    if (!newest) return;
-
-    setEditingId(newest.id);
+    setEditingId(EDIT_LAST);
     setFocusField("desc");
-    setPendingAdd(false);
-  }, [pendingAdd, items]);
+  };
 
   useEffect(() => {
     if (!editingId) return;
@@ -92,7 +82,7 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
     }, 0);
 
     return () => window.clearTimeout(t);
-  }, [editingId, focusField]);
+  }, [editingId, focusField, items.length]);
 
   return (
     <Card
@@ -148,7 +138,9 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
 
       <CardContent className="relative space-y-4 pb-4">
         {items.map((it) => {
-          const isEditing = editingId === it.id;
+          const isEditing =
+            editingId === it.id ||
+            (editingId === EDIT_LAST && it.id === lastId);
 
           if (isEditing) {
             return (
@@ -196,9 +188,7 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
                     size="icon-sm"
                     className="sm:ml-1"
                     aria-label="Excluir conta fixa"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                    }}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       onRemove(it.id);
                       setEditingId(null);
@@ -220,8 +210,8 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
               type="button"
               className="w-full rounded-xl border-b bg-background/50 p-3 text-left shadow-sm transition hover:bg-muted/30"
               onClick={(e) => {
-                const clickedAmount = Boolean(
-                  (e.target as HTMLElement).closest('[data-field="amount"]'),
+                const clickedAmount = !!(e.target as HTMLElement).closest(
+                  '[data-field="amount"]',
                 );
 
                 setEditingId(it.id);
