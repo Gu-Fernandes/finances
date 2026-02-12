@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
 import { cn } from "@/lib/utils";
 
+import { useAppStore } from "@/store/app-store";
+import { useBudgetStore } from "@/store/budget.store";
+
 import { formatBRL, parseMoneyBR } from "../budget.constants";
 import { BUDGET_UI } from "../budget.ui";
 
@@ -66,11 +69,25 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
     if (emptyDesc && emptyAmount) onRemove(it.id);
   };
 
-  const handleAdd = () => {
-    if (!canAdd) return;
+  const addAndEditLast = () => {
     onAdd();
     setEditingId(EDIT_LAST);
     setFocusField("desc");
+  };
+
+  const [askCopy, setAskCopy] = useState(false);
+
+  const handleAdd = () => {
+    if (!canAdd) return;
+
+    const shouldAsk = !dismissCopy && items.length === 0 && prevHasFixedBills;
+
+    if (shouldAsk) {
+      setAskCopy(true);
+      return;
+    }
+
+    addAndEditLast();
   };
 
   useEffect(() => {
@@ -83,6 +100,29 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
 
     return () => window.clearTimeout(t);
   }, [editingId, focusField, items.length]);
+
+  // ✅ novo: prompt “copiar do mês anterior”
+  const { currentMonthKey } = useAppStore();
+  const {
+    selectedMonthKey,
+    getMonth,
+    getPreviousMonthKey,
+    copyFixedBillsFromPrevious,
+  } = useBudgetStore();
+
+  const monthKey = selectedMonthKey || currentMonthKey;
+
+  const prevHasFixedBills = useMemo(() => {
+    const prevKey = getPreviousMonthKey(monthKey);
+    return getMonth(prevKey).fixedBills.length > 0;
+  }, [getMonth, getPreviousMonthKey, monthKey]);
+
+  const [dismissCopy, setDismissCopy] = useState(false);
+
+  useEffect(() => {
+    setDismissCopy(false);
+    setAskCopy(false);
+  }, [monthKey]);
 
   return (
     <Card
@@ -122,7 +162,7 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
             variant="secondary"
             size="icon-sm"
             onClick={handleAdd}
-            disabled={!canAdd}
+            disabled={!canAdd || askCopy}
             aria-label="Adicionar conta fixa"
           >
             <Plus />
@@ -137,6 +177,41 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
       </CardHeader>
 
       <CardContent className="relative space-y-4 pb-4">
+        {askCopy ? (
+          <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/10 p-3 shadow-sm">
+            <p className="text-sm text-muted-foreground">
+              Deseja adicionar as mesmas contas fixas do último mês?
+            </p>
+
+            <div className="mt-3 flex justify-center gap-3">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  copyFixedBillsFromPrevious(monthKey);
+                  setAskCopy(false);
+                  setDismissCopy(true);
+                }}
+              >
+                Sim, copiar
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setAskCopy(false);
+                  setDismissCopy(true);
+                  addAndEditLast();
+                }}
+              >
+                Não
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
         {items.map((it) => {
           const isEditing =
             editingId === it.id ||
