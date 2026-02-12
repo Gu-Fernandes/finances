@@ -1,34 +1,90 @@
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 type RouteCardProps = {
   title: string;
   description: string;
   href: string;
   cta: string;
+  icon?: LucideIcon;
+  hint?: string;
+  accentClass?: string;
+  iconBgClass?: string;
+  iconColorClass?: string;
 };
 
-export function RouteCard({ title, description, href, cta }: RouteCardProps) {
+export function RouteCard({
+  title,
+  description,
+  href,
+  icon: Icon,
+  hint,
+  accentClass,
+  iconBgClass,
+  iconColorClass,
+}: RouteCardProps) {
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
+    <Link
+      href={href}
+      className="block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+    >
+      <Card
+        className={cn(
+          "group relative h-full overflow-hidden rounded-2xl",
+          "transition-all hover:-translate-y-0.5 hover:shadow-md",
+          "hover:border-primary/20",
+        )}
+      >
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100",
+            "bg-gradient-to-br",
+            accentClass ?? "from-primary/10",
+            "via-transparent to-transparent",
+          )}
+        />
 
-      <CardContent className="mt-auto flex justify-end">
-        <Button variant="default" asChild>
-          <Link href={href}>{cta}</Link>
-        </Button>
-      </CardContent>
-    </Card>
+        <div className="relative p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                {Icon ? (
+                  <span
+                    className={cn(
+                      "grid size-9 place-items-center rounded-xl ring-1 ring-border",
+                      "transition-colors",
+                      iconBgClass ?? "bg-muted",
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "size-5 text-muted-foreground transition-colors",
+                        iconColorClass,
+                        "group-hover:text-foreground/80",
+                      )}
+                    />
+                  </span>
+                ) : null}
+
+                <p className="font-semibold leading-none">{title}</p>
+              </div>
+
+              <p className="text-sm text-muted-foreground">{description}</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {hint ? (
+                <span className="rounded-full bg-muted px-2 py-1 text-[11px] text-muted-foreground ring-1 ring-border">
+                  {hint}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </Card>
+    </Link>
   );
 }

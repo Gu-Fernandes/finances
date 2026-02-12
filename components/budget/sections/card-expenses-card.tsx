@@ -1,14 +1,17 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CreditCard, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
+import { cn } from "@/lib/utils";
 
 import { formatBRL, parseMoneyBR } from "../budget.constants";
+import { BUDGET_UI } from "../budget.ui";
 
 type Item = { id: string; category: string; amount: string };
 
@@ -38,13 +41,24 @@ function normalizeMoney(raw: string) {
 }
 
 export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
-  const total = items.reduce((sum, it) => sum + parseMoneyBR(it.amount), 0);
+  const ui = BUDGET_UI.expense;
+
+  const total = useMemo(
+    () => items.reduce((sum, it) => sum + parseMoneyBR(it.amount), 0),
+    [items],
+  );
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [focusField, setFocusField] = useState<"cat" | "amount">("cat");
+  const [pendingAdd, setPendingAdd] = useState(false);
+
+  const catRef = useRef<HTMLInputElement | null>(null);
+  const amountRef = useRef<HTMLInputElement | null>(null);
 
   function tryAutoRemove(it: Item) {
-    const emptyCategory = (it.category ?? "").trim().length === 0;
+    const emptyCat = (it.category ?? "").trim().length === 0;
     const emptyAmount = toCentsFromMasked(it.amount) === 0;
-
-    if (emptyCategory && emptyAmount) onRemove(it.id);
+    if (emptyCat && emptyAmount) onRemove(it.id);
   }
 
   const last = items[items.length - 1];
@@ -53,51 +67,163 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
     ((last.category ?? "").trim().length > 0 &&
       toCentsFromMasked(last.amount) > 0);
 
-  return (
-    <Card className="border border-red-300">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Cartão de crédito</CardTitle>
+  function handleAdd() {
+    if (!canAdd) return;
+    onAdd();
+    setPendingAdd(true);
+  }
 
-        <div className="flex items-center gap-5">
-          <Badge variant="destructive">{formatBRL(total)}</Badge>
+  useEffect(() => {
+    if (!pendingAdd) return;
+    const newest = items[items.length - 1];
+    if (!newest) return;
+
+    setEditingId(newest.id);
+    setFocusField("cat");
+    setPendingAdd(false);
+  }, [pendingAdd, items]);
+
+  useEffect(() => {
+    if (!editingId) return;
+
+    const t = window.setTimeout(() => {
+      if (focusField === "amount") amountRef.current?.focus();
+      else catRef.current?.focus();
+    }, 0);
+
+    return () => window.clearTimeout(t);
+  }, [editingId, focusField]);
+
+  return (
+    <Card
+      className={cn(
+        "group relative overflow-hidden rounded-2xl",
+        "transition-all hover:-translate-y-0.5 hover:shadow-md",
+        "hover:border-primary/20",
+      )}
+    >
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 opacity-0 transition-opacity",
+          "group-hover:opacity-100",
+          "bg-gradient-to-br",
+          ui.gradientFrom,
+          "via-transparent to-transparent",
+        )}
+      />
+
+      <CardHeader className="relative space-y-2 pb-3 pt-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "grid size-9 place-items-center rounded-xl ring-1 ring-border",
+                ui.iconBg,
+              )}
+            >
+              <CreditCard className={cn("size-5", ui.iconText)} />
+            </span>
+
+            <CardTitle className="text-base">Cartão de crédito</CardTitle>
+          </div>
 
           <Button
             type="button"
-            variant="default"
+            variant="secondary"
             size="icon-sm"
-            onClick={() => {
-              if (!canAdd) return;
-              onAdd();
-            }}
+            onClick={handleAdd}
             disabled={!canAdd}
             aria-label="Adicionar gasto no cartão"
           >
             <Plus />
           </Button>
         </div>
+
+        <div className="flex justify-center">
+          <Badge variant="outline" className={cn(ui.badgeOutline)}>
+            {formatBRL(total)}
+          </Badge>
+        </div>
       </CardHeader>
 
-      <CardContent className="space-y-2">
-        {items.map((it) => (
-          <div key={it.id} className="grid grid-cols-2 gap-2">
-            <Input
-              value={it.category}
-              onChange={(e) => onChange(it.id, { category: e.target.value })}
-              onBlur={() => tryAutoRemove(it)}
-              placeholder="Categoria"
-            />
+      <CardContent className="relative space-y-4 pb-4">
+        {items.map((it) => {
+          const isEditing = editingId === it.id;
 
-            <MoneyInput
-              value={normalizeMoney(it.amount)}
-              onChange={(e) =>
-                onChange(it.id, { amount: normalizeMoney(e.target.value) })
-              }
-              onBlur={() => tryAutoRemove(it)}
-              inputMode="decimal"
-              placeholder="0,00"
-            />
-          </div>
-        ))}
+          if (isEditing) {
+            return (
+              <div
+                key={it.id}
+                className="rounded-xl border-b bg-background/50 p-3 shadow-sm"
+                onBlurCapture={(e) => {
+                  const next = e.relatedTarget as Node | null;
+                  if (next && e.currentTarget.contains(next)) return;
+
+                  tryAutoRemove(it);
+                  setEditingId(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setEditingId(null);
+                }}
+              >
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    ref={catRef}
+                    className="font-medium"
+                    value={it.category}
+                    onChange={(e) =>
+                      onChange(it.id, { category: e.target.value })
+                    }
+                    placeholder="Categoria"
+                  />
+
+                  <MoneyInput
+                    ref={amountRef}
+                    className={cn("font-semibold caret-current", ui.value)}
+                    value={normalizeMoney(it.amount)}
+                    onChange={(e) =>
+                      onChange(it.id, {
+                        amount: normalizeMoney(e.target.value),
+                      })
+                    }
+                    inputMode="decimal"
+                    placeholder="0,00"
+                  />
+                </div>
+              </div>
+            );
+          }
+
+          const cat = (it.category ?? "").trim() || "Sem descrição";
+          const value = formatBRL(parseMoneyBR(it.amount));
+
+          return (
+            <button
+              key={it.id}
+              type="button"
+              className="w-full rounded-xl border-b bg-background/50 p-3 text-left shadow-sm transition hover:bg-muted/30"
+              onClick={(e) => {
+                const clickedAmount = Boolean(
+                  (e.target as HTMLElement).closest('[data-field="amount"]'),
+                );
+
+                setEditingId(it.id);
+                setFocusField(clickedAmount ? "amount" : "cat");
+              }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-sm font-medium">{cat}</p>
+
+                <p
+                  data-field="amount"
+                  className={cn("shrink-0 text-sm font-semibold", ui.value)}
+                >
+                  {value}
+                </p>
+              </div>
+            </button>
+          );
+        })}
       </CardContent>
     </Card>
   );

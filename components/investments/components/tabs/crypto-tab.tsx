@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -99,163 +99,280 @@ export function CryptoTab() {
     totals.totalProfitCents,
   );
 
+  // ---- read-only -> edit (igual orçamento/renda fixa) ----
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [focusField, setFocusField] = useState<"applied" | "current">(
+    "applied",
+  );
+
+  const appliedRef = useRef<HTMLInputElement | null>(null);
+  const currentRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!editingId) return;
+
+    const t = window.setTimeout(() => {
+      if (focusField === "current") currentRef.current?.focus();
+      else appliedRef.current?.focus();
+    }, 0);
+
+    return () => window.clearTimeout(t);
+  }, [editingId, focusField]);
+  // --------------------------------------------------------
+
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <p className="text-center text-muted-foreground">Cripto</p>
+      {/* Summary (mobile-safe + padrão do app) */}
+      <div className="rounded-2xl border bg-muted/20 p-4">
+        <div className="space-y-2 text-center">
+          <p className="text-sm text-muted-foreground">Cripto</p>
 
-        <p className="text-center text-2xl font-semibold">
-          {formatBRLFromCents(totals.totalCurrentCents)}
-        </p>
+          <p className="mx-auto max-w-full px-2 text-2xl font-semibold tracking-tight leading-tight break-words tabular-nums">
+            {formatBRLFromCents(totals.totalCurrentCents)}
+          </p>
 
-        <div className="flex justify-center gap-2">
-          <Badge variant={totalMeta.variant} className="gap-1">
-            <totalMeta.Icon className="h-4 w-4" />
-            {formatBRLFromCents(totals.totalProfitCents)}
-          </Badge>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Badge variant={totalMeta.variant} className="gap-1">
+              <totalMeta.Icon className="h-4 w-4" />
+              {formatBRLFromCents(totals.totalProfitCents)}
+            </Badge>
 
-          <Badge variant={totalMeta.variant} className="gap-1">
-            <totalMeta.Icon className="h-4 w-4" />
-            {totalPercentLabel}
-          </Badge>
+            <Badge variant={totalMeta.variant} className="gap-1">
+              <totalMeta.Icon className="h-4 w-4" />
+              {totalPercentLabel}
+            </Badge>
+          </div>
         </div>
       </div>
 
-      <div className="space-y-3">
+      {/* Conteúdo */}
+      <div className="space-y-5 pb-10 sm:pb-0">
         {crypto.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            Nenhuma cripto adicionada ainda.
-          </p>
+          <div className="rounded-2xl border border-dashed p-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Nenhuma cripto adicionada ainda.
+            </p>
+
+            <div className="mt-4 flex justify-center">
+              <Button
+                type="button"
+                onClick={addCryptoItem}
+                disabled={!ready}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Adicionar
+              </Button>
+            </div>
+          </div>
         ) : null}
 
-        {crypto.map((it) => {
-          const profitCents = (it.currentCents || 0) - (it.appliedCents || 0);
-          const meta = getProfitBadgeMeta(profitCents);
+        {crypto.length > 0 ? (
+          <div className="space-y-5">
+            {crypto.map((it) => {
+              const profitCents =
+                (it.currentCents || 0) - (it.appliedCents || 0);
+              const meta = getProfitBadgeMeta(profitCents);
 
-          const profitPercentLabel = getProfitPercentLabel(
-            it.appliedCents || 0,
-            profitCents,
-          );
+              const profitPercentLabel = getProfitPercentLabel(
+                it.appliedCents || 0,
+                profitCents,
+              );
 
-          const itemName = (it.name ?? "").trim() || "Cripto";
+              const itemName = (it.name ?? "").trim() || "Cripto";
+              const isEditing = editingId === it.id;
 
-          return (
-            <Card key={it.id} className="p-4">
-              <div className="flex items-start justify-between gap-2">
-                <Input
-                  value={it.name}
-                  onChange={(e) =>
-                    updateCryptoItem(it.id, { name: e.target.value })
-                  }
-                  placeholder="Nome"
-                  className="h-10 border-0 bg-transparent text-center text-lg font-semibold shadow-none focus-visible:ring-0"
-                  disabled={!ready}
-                />
+              const appliedLabel = formatBRLFromCents(it.appliedCents || 0);
+              const currentLabel = formatBRLFromCents(it.currentCents || 0);
 
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="text-destructive"
-                      size="icon"
-                      aria-label="Remover"
-                      title="Remover"
+              return (
+                <Card key={it.id} className="rounded-2xl p-4 shadow-sm">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-2">
+                    <Input
+                      value={it.name}
+                      onChange={(e) =>
+                        updateCryptoItem(it.id, { name: e.target.value })
+                      }
+                      placeholder="Nome"
+                      className="h-10 border-0 bg-transparent px-0 text-center text-lg font-semibold shadow-none focus-visible:ring-0"
                       disabled={!ready}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
+                    />
 
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Excluir {itemName}?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Essa ação não pode ser desfeita. O item será removido da
-                        sua lista de cripto.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-
-                      <AlertDialogAction asChild>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
                         <Button
-                          variant="destructive"
-                          onClick={() => removeCryptoItem(it.id)}
+                          type="button"
+                          variant="ghost"
+                          className="text-destructive"
+                          size="icon"
+                          aria-label="Remover"
+                          title="Remover"
+                          disabled={!ready}
                         >
-                          Excluir
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
+                      </AlertDialogTrigger>
 
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm text-muted-foreground">
-                    Valor aplicado
-                  </p>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Excluir {itemName}?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Essa ação não pode ser desfeita. O item será
+                            removido da sua lista de cripto.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
 
-                  <div className="w-44 sm:w-56">
-                    <MoneyInput
-                      value={formatInputFromCents(it.appliedCents)}
-                      onChange={(e) =>
-                        updateCryptoItem(it.id, {
-                          appliedCents: toCentsFromMasked(e.target.value),
-                        })
-                      }
-                      inputMode="decimal"
-                      disabled={!ready}
-                    />
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+
+                          <AlertDialogAction asChild>
+                            <Button
+                              variant="destructive"
+                              onClick={() => removeCryptoItem(it.id)}
+                            >
+                              Excluir
+                            </Button>
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
-                </div>
 
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm text-muted-foreground">Valor atual</p>
+                  {/* Applied/Current (read-only -> edit) */}
+                  <div className="mt-4 space-y-3">
+                    {isEditing ? (
+                      <div
+                        className="rounded-xl border bg-background/50 p-3 shadow-sm"
+                        onBlurCapture={(e) => {
+                          const next = e.relatedTarget as Node | null;
+                          if (next && e.currentTarget.contains(next)) return;
+                          setEditingId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                      >
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">
+                              Valor aplicado
+                            </p>
+                            <MoneyInput
+                              ref={appliedRef}
+                              value={formatInputFromCents(it.appliedCents || 0)}
+                              onChange={(e) =>
+                                updateCryptoItem(it.id, {
+                                  appliedCents: toCentsFromMasked(
+                                    e.target.value,
+                                  ),
+                                })
+                              }
+                              inputMode="decimal"
+                              disabled={!ready}
+                            />
+                          </div>
 
-                  <div className="w-44 sm:w-56">
-                    <MoneyInput
-                      value={formatInputFromCents(it.currentCents)}
-                      onChange={(e) =>
-                        updateCryptoItem(it.id, {
-                          currentCents: toCentsFromMasked(e.target.value),
-                        })
-                      }
-                      inputMode="decimal"
-                      disabled={!ready}
-                    />
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">
+                              Valor atual
+                            </p>
+                            <MoneyInput
+                              ref={currentRef}
+                              value={formatInputFromCents(it.currentCents || 0)}
+                              onChange={(e) =>
+                                updateCryptoItem(it.id, {
+                                  currentCents: toCentsFromMasked(
+                                    e.target.value,
+                                  ),
+                                })
+                              }
+                              inputMode="decimal"
+                              disabled={!ready}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="w-full rounded-xl border bg-background/50 p-3 text-left shadow-sm transition hover:bg-muted/30"
+                        onClick={(e) => {
+                          const clickedCurrent = Boolean(
+                            (e.target as HTMLElement).closest(
+                              '[data-field="current"]',
+                            ),
+                          );
+
+                          setEditingId(it.id);
+                          setFocusField(clickedCurrent ? "current" : "applied");
+                        }}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm text-muted-foreground">
+                              Valor aplicado
+                            </p>
+                            <p
+                              data-field="applied"
+                              className="text-sm font-semibold tabular-nums break-words"
+                            >
+                              {appliedLabel}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm text-muted-foreground">
+                              Valor atual
+                            </p>
+                            <p
+                              data-field="current"
+                              className="text-sm font-semibold tabular-nums break-words"
+                            >
+                              {currentLabel}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* Badges */}
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Badge variant={meta.variant} className="gap-1">
+                        <meta.Icon className="h-4 w-4" />
+                        {formatBRLFromCents(profitCents)}
+                      </Badge>
+
+                      <Badge variant={meta.variant} className="gap-1">
+                        <meta.Icon className="h-4 w-4" />
+                        {profitPercentLabel}
+                      </Badge>
+                    </div>
                   </div>
-                </div>
+                </Card>
+              );
+            })}
+          </div>
+        ) : null}
 
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <Badge variant={meta.variant} className="gap-1">
-                    <meta.Icon className="h-4 w-4" />
-                    {formatBRLFromCents(profitCents)}
-                  </Badge>
-
-                  <Badge variant={meta.variant} className="gap-1">
-                    <meta.Icon className="h-4 w-4" />
-                    {profitPercentLabel}
-                  </Badge>
-                </div>
-              </div>
-            </Card>
-          );
-        })}
-
-        <div className="flex justify-end py-5">
-          <Button
-            type="button"
-            onClick={addCryptoItem}
-            disabled={!ready}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Adicionar
-          </Button>
-        </div>
+        {/* CTA sticky (só quando já tem itens) */}
+        {crypto.length > 0 ? (
+          <div className="sticky bottom-0 -mx-4 border-t bg-background/80 px-4 pb-4 pt-3 backdrop-blur sm:static sm:-mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0">
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                onClick={addCryptoItem}
+                disabled={!ready}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Adicionar
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
