@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CreditCard, Plus } from "lucide-react";
+import { CreditCard, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -166,7 +166,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
                   if (e.key === "Escape") setEditingId(null);
                 }}
               >
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
                   <Input
                     ref={catRef}
                     className="font-medium"
@@ -189,6 +189,23 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
                     inputMode="decimal"
                     placeholder="0,00"
                   />
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="sm:ml-1"
+                    aria-label="Excluir gasto no cartão"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                    }}
+                    onClick={() => {
+                      onRemove(it.id);
+                      setEditingId(null);
+                    }}
+                  >
+                    <Trash2 className="size-4 text-destructive" />
+                  </Button>
                 </div>
               </div>
             );

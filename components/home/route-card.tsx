@@ -55,13 +55,17 @@ export function RouteCard({
                   <span
                     className={cn(
                       "grid size-9 place-items-center rounded-xl ring-1 ring-border",
-                      "transition-colors",
+                      "transition-all duration-200",
+                      "group-hover:scale-[1.04] group-hover:-translate-y-[1px]",
+                      "motion-reduce:transition-none motion-reduce:transform-none",
                       iconBgClass ?? "bg-muted",
                     )}
                   >
                     <Icon
                       className={cn(
-                        "size-5 text-muted-foreground transition-colors",
+                        "size-5 text-muted-foreground transition-all duration-200",
+                        "group-hover:rotate-3 group-hover:scale-[1.06]",
+                        "motion-reduce:transition-none motion-reduce:transform-none",
                         iconColorClass,
                         "group-hover:text-foreground/80",
                       )}

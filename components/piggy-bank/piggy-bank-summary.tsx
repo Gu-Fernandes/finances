@@ -20,7 +20,6 @@ export function PiggyBankSummary({ total, filledMonths }: Props) {
 
   const avg = filledMonths > 0 ? Math.round(total / filledMonths) : 0;
   const projection = avg * monthsTotal;
-  const remaining = Math.max(0, monthsTotal - filledMonths);
 
   return (
     <Card className="overflow-hidden rounded-2xl">

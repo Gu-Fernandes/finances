@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Landmark } from "lucide-react";
+import { Landmark, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 import { formatBRL, parseMoneyBR } from "../budget.constants";
 import { BUDGET_UI } from "../budget.ui";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   amount: string;
@@ -117,10 +118,9 @@ export function InvestedCard({ amount, onChangeAmount }: Props) {
               if (e.key === "Enter") finishEdit();
             }}
           >
-            <div className="grid gap-2 sm:grid-cols-2 sm:items-center">
+            <div className="grid gap-2 sm:grid-cols-[auto_1fr_auto] sm:items-center">
               <p className="text-sm text-muted-foreground">Total guardado</p>
 
-              {/* ✅ valor do input verde */}
               <MoneyInput
                 ref={inputRef}
                 className={cn("font-semibold text-primary")}
@@ -129,6 +129,23 @@ export function InvestedCard({ amount, onChangeAmount }: Props) {
                 inputMode="decimal"
                 placeholder="0,00"
               />
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="sm:ml-1"
+                aria-label="Limpar valor investido"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                }}
+                onClick={() => {
+                  onChangeAmount("");
+                  setEditing(false);
+                }}
+              >
+                <Trash2 className="size-4 text-destructive" />
+              </Button>
             </div>
           </div>
         ) : (
