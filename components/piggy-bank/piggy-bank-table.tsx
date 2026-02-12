@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,10 +54,10 @@ type ViewProps = {
 function DesktopTable({ rows, values, currentKey, onChange }: ViewProps) {
   return (
     <div className="hidden md:block">
-      <ScrollArea className="w-full rounded-lg border">
+      <ScrollArea className="w-full rounded-2xl border">
         <div className="min-w-[760px]">
           <Table>
-            <TableHeader className="bg-muted/50">
+            <TableHeader className="sticky top-0 z-10 bg-muted/50 backdrop-blur">
               <TableRow>
                 <TableHead className="w-16">#</TableHead>
                 <TableHead>Mês</TableHead>
@@ -67,9 +74,14 @@ function DesktopTable({ rows, values, currentKey, onChange }: ViewProps) {
                 return (
                   <TableRow
                     key={r.key}
-                    className={cn(isCurrent && "bg-muted/30")}
+                    className={cn(
+                      "transition-colors",
+                      "hover:bg-muted/20",
+                      "even:bg-muted/5",
+                      isCurrent && "bg-muted/30",
+                    )}
                   >
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="text-muted-foreground tabular-nums">
                       {r.index}º
                     </TableCell>
 
@@ -101,12 +113,12 @@ function DesktopTable({ rows, values, currentKey, onChange }: ViewProps) {
                             onChange(r.key, formatted)
                           }
                           placeholder="0,00"
-                          className="max-w-[160px]"
+                          className="max-w-[170px] text-right tabular-nums"
                         />
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-right font-semibold">
+                    <TableCell className="text-right font-semibold tabular-nums">
                       {formatBRL(r.total)}
                     </TableCell>
                   </TableRow>
@@ -123,17 +135,38 @@ function DesktopTable({ rows, values, currentKey, onChange }: ViewProps) {
 }
 
 function MobileList({ rows, values, currentKey, onChange }: ViewProps) {
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!editingKey) return;
+
+    const t = window.setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+
+    return () => window.clearTimeout(t);
+  }, [editingKey]);
+
   return (
-    <div className="space-y-5 md:hidden">
+    <div className="space-y-4 md:hidden">
       {rows.map((r) => {
         const isCurrent = r.key === currentKey;
+        const isEditing = editingKey === r.key;
+
         const inputId = `piggy-mobile-${r.key}`;
+        const savedLabel = formatBRL(r.saved);
+        const totalLabel = formatBRL(r.total);
 
         return (
           <div
             key={r.key}
-            className={cn("rounded-lg border p-3", isCurrent && "bg-muted/30")}
+            className={cn(
+              "rounded-2xl border bg-background/50 p-4 shadow-sm",
+              isCurrent && "bg-muted/20 ring-1 ring-foreground/10",
+            )}
           >
+            {/* Header */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-3">
                 <Badge variant="outline" className="h-6 px-2">
@@ -149,34 +182,74 @@ function MobileList({ rows, values, currentKey, onChange }: ViewProps) {
               ) : null}
             </div>
 
-            <div className="mt-3 space-y-3">
-              <div className="space-y-1">
-                <Label
-                  htmlFor={inputId}
-                  className="text-xs text-muted-foreground"
+            {/* Body */}
+            <div className="mt-3">
+              {isEditing ? (
+                <div
+                  className="rounded-xl border bg-background/60 p-3 shadow-sm"
+                  onBlurCapture={(e) => {
+                    const next = e.relatedTarget as Node | null;
+                    if (next && e.currentTarget.contains(next)) return;
+                    setEditingKey(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setEditingKey(null);
+                  }}
                 >
-                  Guardado
-                </Label>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor={inputId}
+                        className="text-xs text-muted-foreground"
+                      >
+                        Guardado
+                      </Label>
 
-                <MoneyInput
-                  id={inputId}
-                  currencyLabel="R$"
-                  value={values[r.key] ?? ""}
-                  onValueChange={(formatted) => onChange(r.key, formatted)}
-                  placeholder="0,00"
-                />
-              </div>
+                      <MoneyInput
+                        ref={inputRef}
+                        id={inputId}
+                        currencyLabel="R$"
+                        value={values[r.key] ?? ""}
+                        onValueChange={(formatted) =>
+                          onChange(r.key, formatted)
+                        }
+                        placeholder="0,00"
+                      />
+                    </div>
 
-              <Separator />
+                    <div className="flex items-center justify-between gap-3">
+                      <Label className="text-xs text-muted-foreground">
+                        Montante
+                      </Label>
+                      <p className="text-sm font-semibold text-primary tabular-nums">
+                        {totalLabel}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="w-full rounded-xl border bg-background/60 p-3 text-left shadow-sm transition hover:bg-muted/30"
+                  onClick={() => setEditingKey(r.key)}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm text-muted-foreground">Guardado</p>
+                      <p className="text-sm font-semibold tabular-nums">
+                        {savedLabel}
+                      </p>
+                    </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">
-                  Montante
-                </Label>
-                <p className="text-right text-primary text-base font-semibold">
-                  {formatBRL(r.total)}
-                </p>
-              </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm text-muted-foreground">Montante</p>
+                      <p className="text-sm font-semibold text-primary tabular-nums">
+                        {totalLabel}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              )}
             </div>
           </div>
         );
@@ -185,10 +258,6 @@ function MobileList({ rows, values, currentKey, onChange }: ViewProps) {
   );
 }
 
-/**
- * Store simples em memória + localStorage, usando useSyncExternalStore
- * (resolve hydration e evita setState dentro de useEffect).
- */
 type Snapshot = {
   values: Record<string, string>;
   ready: boolean;
@@ -279,20 +348,23 @@ export function PiggyBankTable() {
     _setValues((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  if (!ready) {
-    return <Loading />;
-  }
+  if (!ready) return <Loading />;
 
   return (
     <div className="space-y-4">
       <PiggyBankSummary total={total} filledMonths={filledMonths} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Controle mensal</CardTitle>
+      <Card className="group relative overflow-hidden rounded-2xl">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+
+        <CardHeader className="relative pb-3 pt-4">
+          <CardTitle className="text-base">Controle mensal</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Preencha o valor guardado por mês e acompanhe o montante acumulado.
+          </p>
         </CardHeader>
 
-        <CardContent className="space-y-3">
+        <CardContent className="relative space-y-4 pb-4">
           <MobileList
             rows={rows}
             values={values}
