@@ -32,27 +32,40 @@ type Row = {
   index: number;
   label: string;
   monthKey: string; // YYYY-MM
+  amount: string; // invested.amount (string formatada)
   saved: number;
   total: number;
 };
 
-type ViewProps = {
+function keepFocusInside(e: React.FocusEvent) {
+  const next = e.relatedTarget as Node | null;
+  return Boolean(next && e.currentTarget.contains(next));
+}
+
+function useAutoFocus(
+  enabled: boolean,
+  ref: React.RefObject<HTMLInputElement | null>,
+) {
+  useEffect(() => {
+    if (!enabled) return;
+    const t = window.setTimeout(() => ref.current?.focus(), 0);
+    return () => window.clearTimeout(t);
+  }, [enabled, ref]);
+}
+
+function DesktopTable({
+  rows,
+  currentKey,
+  onChange,
+}: {
   rows: Row[];
-  values: Record<string, string>;
   currentKey: string;
   onChange: (monthKey: string, value: string) => void;
-};
-
-function DesktopTable({ rows, values, currentKey, onChange }: ViewProps) {
+}) {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    if (!editingKey) return;
-
-    const t = window.setTimeout(() => inputRef.current?.focus(), 0);
-    return () => window.clearTimeout(t);
-  }, [editingKey]);
+  useAutoFocus(Boolean(editingKey), inputRef);
 
   return (
     <div className="hidden md:block">
@@ -105,12 +118,14 @@ function DesktopTable({ rows, values, currentKey, onChange }: ViewProps) {
                         className="flex justify-end"
                         onBlurCapture={(e) => {
                           if (!isEditing) return;
-                          const next = e.relatedTarget as Node | null;
-                          if (next && e.currentTarget.contains(next)) return;
+                          if (keepFocusInside(e)) return;
                           setEditingKey(null);
                         }}
                         onKeyDown={(e) => {
-                          if (e.key === "Escape") setEditingKey(null);
+                          if (!isEditing) return;
+                          if (e.key === "Enter" || e.key === "Escape") {
+                            setEditingKey(null);
+                          }
                         }}
                       >
                         <Label htmlFor={inputId} className="sr-only">
@@ -122,7 +137,7 @@ function DesktopTable({ rows, values, currentKey, onChange }: ViewProps) {
                             ref={inputRef}
                             id={inputId}
                             currencyLabel="R$"
-                            value={values[r.monthKey] ?? ""}
+                            value={r.amount}
                             onValueChange={(formatted) =>
                               onChange(r.monthKey, formatted)
                             }
@@ -132,7 +147,7 @@ function DesktopTable({ rows, values, currentKey, onChange }: ViewProps) {
                         ) : (
                           <button
                             type="button"
-                            className="rounded-lg px-2 py-1 tabular-nums transition hover:bg-muted/30"
+                            className="rounded-lg px-2 py-1 tabular-nums transition hover:bg-muted/30 hover:underline"
                             onClick={() => setEditingKey(r.monthKey)}
                             aria-label={`Editar guardado de ${r.label}`}
                           >
@@ -158,15 +173,19 @@ function DesktopTable({ rows, values, currentKey, onChange }: ViewProps) {
   );
 }
 
-function MobileList({ rows, values, currentKey, onChange }: ViewProps) {
+function MobileList({
+  rows,
+  currentKey,
+  onChange,
+}: {
+  rows: Row[];
+  currentKey: string;
+  onChange: (monthKey: string, value: string) => void;
+}) {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    if (!editingKey) return;
-    const t = window.setTimeout(() => inputRef.current?.focus(), 0);
-    return () => window.clearTimeout(t);
-  }, [editingKey]);
+  useAutoFocus(Boolean(editingKey), inputRef);
 
   return (
     <div className="space-y-4 md:hidden">
@@ -186,7 +205,6 @@ function MobileList({ rows, values, currentKey, onChange }: ViewProps) {
               isCurrent && "bg-muted/20 ring-1 ring-foreground/10",
             )}
           >
-            {/* header */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-3">
                 <Badge variant="outline" className="h-6 px-2">
@@ -202,22 +220,21 @@ function MobileList({ rows, values, currentKey, onChange }: ViewProps) {
               ) : null}
             </div>
 
-            {/* body */}
             <div className="mt-3">
               {isEditing ? (
                 <div
                   className="rounded-xl border bg-background/60 p-3 shadow-sm"
                   onBlurCapture={(e) => {
-                    const next = e.relatedTarget as Node | null;
-                    if (next && e.currentTarget.contains(next)) return;
+                    if (keepFocusInside(e)) return;
                     setEditingKey(null);
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === "Escape") setEditingKey(null);
+                    if (e.key === "Enter" || e.key === "Escape") {
+                      setEditingKey(null);
+                    }
                   }}
                 >
                   <div className="space-y-3">
-                    {/* guardado (label + input na MESMA LINHA) */}
                     <div className="flex items-center justify-between gap-3">
                       <Label
                         htmlFor={inputId}
@@ -230,7 +247,7 @@ function MobileList({ rows, values, currentKey, onChange }: ViewProps) {
                         ref={inputRef}
                         id={inputId}
                         currencyLabel="R$"
-                        value={values[r.monthKey] ?? ""}
+                        value={r.amount}
                         onValueChange={(formatted) =>
                           onChange(r.monthKey, formatted)
                         }
@@ -239,7 +256,6 @@ function MobileList({ rows, values, currentKey, onChange }: ViewProps) {
                       />
                     </div>
 
-                    {/* montante (read-only) */}
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm text-muted-foreground">Montante</p>
                       <p className="text-sm font-semibold text-primary tabular-nums">
@@ -253,11 +269,12 @@ function MobileList({ rows, values, currentKey, onChange }: ViewProps) {
                   type="button"
                   className="w-full rounded-xl border bg-background/60 p-3 text-left shadow-sm transition hover:bg-muted/30"
                   onClick={() => setEditingKey(r.monthKey)}
+                  aria-label={`Editar guardado de ${r.label}`}
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm text-muted-foreground">Guardado</p>
-                      <p className="text-sm font-semibold tabular-nums">
+                      <p className="text-sm font-semibold tabular-nums underline-offset-4 group-hover:underline">
                         {savedLabel}
                       </p>
                     </div>
@@ -283,32 +300,28 @@ export function PiggyBankTable() {
   const { ready, currentMonthKey } = useAppStore();
   const { selectedMonthKey, getMonth, updateMonth } = useBudgetStore();
 
-  const year = (selectedMonthKey || currentMonthKey).slice(0, 4);
+  const baseKey = selectedMonthKey || currentMonthKey;
+  const year = baseKey.slice(0, 4);
 
-  const { rows, values } = useMemo(() => {
-    const map: Record<string, string> = {};
-    const out: Row[] = [];
+  const rows: Row[] = useMemo(() => {
     let total = 0;
 
-    MONTHS.forEach((m, idx) => {
+    return MONTHS.map((m, idx) => {
       const monthKey = `${year}-${m.value}`;
       const amount = getMonth(monthKey).invested.amount ?? "";
-
-      map[monthKey] = amount;
 
       const saved = parseMoneyBR(amount);
       total += saved;
 
-      out.push({
+      return {
         index: idx + 1,
         label: m.label,
         monthKey,
+        amount,
         saved,
         total,
-      });
+      };
     });
-
-    return { rows: out, values: map };
   }, [getMonth, year]);
 
   const total = rows.at(-1)?.total ?? 0;
@@ -342,14 +355,12 @@ export function PiggyBankTable() {
         <CardContent className="space-y-4 pb-4">
           <MobileList
             rows={rows}
-            values={values}
             currentKey={currentMonthKey}
             onChange={handleChange}
           />
 
           <DesktopTable
             rows={rows}
-            values={values}
             currentKey={currentMonthKey}
             onChange={handleChange}
           />

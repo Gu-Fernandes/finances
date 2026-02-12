@@ -12,7 +12,6 @@ type RouteCardProps = {
   icon?: LucideIcon;
   hint?: string;
   accentClass?: string;
-
   iconBgClass?: string;
   iconColorClass?: string;
 };
@@ -82,10 +81,6 @@ export function RouteCard({
                   {hint}
                 </span>
               ) : null}
-
-              <span className="text-primary/80 transition-all group-hover:translate-x-0.5 group-hover:text-primary">
-                →
-              </span>
             </div>
           </div>
         </div>
