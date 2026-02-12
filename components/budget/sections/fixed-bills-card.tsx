@@ -75,7 +75,24 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
     setFocusField("desc");
   };
 
-  const [askCopy, setAskCopy] = useState(false);
+  const { currentMonthKey } = useAppStore();
+  const {
+    selectedMonthKey,
+    getMonth,
+    getPreviousMonthKey,
+    copyFixedBillsFromPrevious,
+  } = useBudgetStore();
+
+  const monthKey = selectedMonthKey || currentMonthKey;
+
+  const prevKey = getPreviousMonthKey(monthKey);
+  const prevHasFixedBills = getMonth(prevKey).fixedBills.length > 0;
+
+  const [askCopyFor, setAskCopyFor] = useState<string | null>(null);
+  const [dismissCopyFor, setDismissCopyFor] = useState<string | null>(null);
+
+  const askCopy = askCopyFor === monthKey;
+  const dismissCopy = dismissCopyFor === monthKey;
 
   const handleAdd = () => {
     if (!canAdd) return;
@@ -83,7 +100,7 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
     const shouldAsk = !dismissCopy && items.length === 0 && prevHasFixedBills;
 
     if (shouldAsk) {
-      setAskCopy(true);
+      setAskCopyFor(monthKey);
       return;
     }
 
@@ -100,29 +117,6 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
 
     return () => window.clearTimeout(t);
   }, [editingId, focusField, items.length]);
-
-  // ✅ novo: prompt “copiar do mês anterior”
-  const { currentMonthKey } = useAppStore();
-  const {
-    selectedMonthKey,
-    getMonth,
-    getPreviousMonthKey,
-    copyFixedBillsFromPrevious,
-  } = useBudgetStore();
-
-  const monthKey = selectedMonthKey || currentMonthKey;
-
-  const prevHasFixedBills = useMemo(() => {
-    const prevKey = getPreviousMonthKey(monthKey);
-    return getMonth(prevKey).fixedBills.length > 0;
-  }, [getMonth, getPreviousMonthKey, monthKey]);
-
-  const [dismissCopy, setDismissCopy] = useState(false);
-
-  useEffect(() => {
-    setDismissCopy(false);
-    setAskCopy(false);
-  }, [monthKey]);
 
   return (
     <Card
@@ -189,8 +183,8 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
                 size="sm"
                 onClick={() => {
                   copyFixedBillsFromPrevious(monthKey);
-                  setAskCopy(false);
-                  setDismissCopy(true);
+                  setAskCopyFor(null);
+                  setDismissCopyFor(monthKey);
                 }}
               >
                 Sim, copiar
@@ -201,8 +195,8 @@ export function FixedBillsCard({ items, onAdd, onChange, onRemove }: Props) {
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  setAskCopy(false);
-                  setDismissCopy(true);
+                  setAskCopyFor(null);
+                  setDismissCopyFor(monthKey);
                   addAndEditLast();
                 }}
               >
