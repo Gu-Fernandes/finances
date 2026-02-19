@@ -13,7 +13,9 @@ import {
   Pencil,
   ReceiptText,
   Trash2,
+  Wallet,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -116,6 +118,7 @@ type Props = { plan: InstallmentPlan };
 export function InstallmentPlanCard({ plan }: Props) {
   const togglePaid = useInstallmentsStore((s) => s.togglePaid);
   const removePlan = useInstallmentsStore((s) => s.removePlan);
+  const restorePlan = useInstallmentsStore((s) => s.restorePlan);
 
   const [expanded, setExpanded] = React.useState(false);
 
@@ -184,12 +187,8 @@ export function InstallmentPlanCard({ plan }: Props) {
     return { label: "Em dia", variant: "outline" as const, Icon: Clock4 };
   }, [paidCount, plan.count, nextDue]);
 
-  const markNextAsPaid = React.useCallback(() => {
-    if (nextOpenIndex == null) return;
-    togglePaid(plan.id, nextOpenIndex);
-  }, [nextOpenIndex, plan.id, togglePaid]);
+  const isOverdue = status.variant === "destructive";
 
-  // mobile: mostra 4 e expande
   const mobileVisibleCount = expanded ? plan.count : Math.min(plan.count, 4);
   const canExpandMobile = plan.count > 4;
 
@@ -205,13 +204,59 @@ export function InstallmentPlanCard({ plan }: Props) {
     setDeleteOpen(true);
   }
 
+  function handleTogglePaid(index: number) {
+    const prev = plan.paid[index] ?? false;
+
+    togglePaid(plan.id, index);
+
+    toast(prev ? "Parcela desmarcada" : "Parcela marcada como paga", {
+      description: `${plan.name} • ${parcelaLabel(index)}`,
+      action: {
+        label: "Desfazer",
+        onClick: () => {
+          const currentPlan = useInstallmentsStore
+            .getState()
+            .plans.find((p) => p.id === plan.id);
+
+          if (!currentPlan) return;
+
+          const curr = currentPlan.paid[index] ?? false;
+          if (curr !== prev) togglePaid(plan.id, index);
+        },
+      },
+    });
+  }
+
+  function markNextAsPaid() {
+    if (nextOpenIndex == null) return;
+    handleTogglePaid(nextOpenIndex);
+  }
+
+  function confirmDelete() {
+    const removedIndex = useInstallmentsStore
+      .getState()
+      .plans.findIndex((p) => p.id === plan.id);
+
+    removePlan(plan.id);
+    setDeleteOpen(false);
+
+    toast("Plano excluído", {
+      description: plan.name,
+      action: {
+        label: "Desfazer",
+        onClick: () =>
+          restorePlan(plan, removedIndex >= 0 ? removedIndex : undefined),
+      },
+    });
+  }
+
   return (
     <>
       <Card className="h-full">
         <CardHeader className="space-y-4">
-          {/* ✅ OPÇÃO 2: Título em cima, ações podem descer no mobile sem quebrar */}
+          {/* Header robusto pra título gigante */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            {/* ESQUERDA (flexível) */}
+            {/* ESQUERDA */}
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 items-center gap-2">
                 <div className="shrink-0 rounded-md border bg-primary/5 p-1.5 text-primary">
@@ -230,17 +275,24 @@ export function InstallmentPlanCard({ plan }: Props) {
               </p>
             </div>
 
-            {/* DIREITA (fixa) */}
-            <div className="flex shrink-0 items-center justify-end gap-2 whitespace-nowrap">
-              <Badge variant={status.variant} className="gap-1.5 max-w-[140px]">
+            {/* DIREITA (wrap no mobile pra não vazar) */}
+            <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap">
+              <Badge
+                variant={status.variant}
+                className="max-w-[140px] shrink-0 gap-1.5"
+              >
                 <status.Icon className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">{status.label}</span>
               </Badge>
 
-              {/* Ações (sem dropdown-menu) */}
               <Popover open={actionsOpen} onOpenChange={setActionsOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon-sm" aria-label="Ações">
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label="Ações"
+                    className="shrink-0"
+                  >
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
@@ -299,10 +351,20 @@ export function InstallmentPlanCard({ plan }: Props) {
               </span>
             </div>
 
-            <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-xs">
-              <span className="text-muted-foreground">Restantes:</span>
-              <span className="font-medium text-foreground">
-                {remainingCount}
+            {/* ✅ trocado: Restantes -> Em aberto (R$) */}
+            <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-xs">
+              <div className="flex min-w-0 items-center gap-2">
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Em aberto:</span>
+              </div>
+
+              <span
+                className={cn(
+                  "shrink-0 font-semibold tabular-nums",
+                  isOverdue ? "text-destructive" : "text-foreground",
+                )}
+              >
+                {formatBRL(remainingCents)}
               </span>
             </div>
           </div>
@@ -311,7 +373,7 @@ export function InstallmentPlanCard({ plan }: Props) {
           {canMarkNext ? (
             <Button
               type="button"
-              variant="outline"
+              variant={isOverdue ? "destructive" : "outline"}
               size="sm"
               onClick={markNextAsPaid}
               className="w-full gap-2"
@@ -374,7 +436,7 @@ export function InstallmentPlanCard({ plan }: Props) {
                         <div className="flex justify-center">
                           <Checkbox
                             checked={isPaid}
-                            onCheckedChange={() => togglePaid(plan.id, i)}
+                            onCheckedChange={() => handleTogglePaid(i)}
                           />
                         </div>
                       </TableCell>
@@ -394,8 +456,8 @@ export function InstallmentPlanCard({ plan }: Props) {
               return (
                 <div key={i} className="rounded-lg border p-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">
+                    <div className="min-w-0 space-y-1">
+                      <p className="truncate text-sm font-medium">
                         {parcelaLabel(i)} •{" "}
                         {format(due, "MMM 'de' yyyy", { locale: ptBR })}
                       </p>
@@ -409,11 +471,11 @@ export function InstallmentPlanCard({ plan }: Props) {
                       </p>
                     </div>
 
-                    <div className="flex flex-col items-center gap-2 pr-1">
+                    <div className="flex shrink-0 flex-col items-center gap-2 pr-1">
                       <p className="text-xs text-muted-foreground">Pago</p>
                       <Checkbox
                         checked={isPaid}
-                        onCheckedChange={() => togglePaid(plan.id, i)}
+                        onCheckedChange={() => handleTogglePaid(i)}
                       />
                     </div>
                   </div>
@@ -457,7 +519,7 @@ export function InstallmentPlanCard({ plan }: Props) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => removePlan(plan.id)}
+              onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir

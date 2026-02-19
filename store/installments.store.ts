@@ -10,36 +10,46 @@ export type InstallmentPlan = {
   paid: boolean[]; // tamanho = count
 };
 
-type UpdatePlanPatch = Partial<
+type UpdatePayload = Partial<
   Pick<InstallmentPlan, "name" | "installmentCents" | "count" | "firstDueDateISO">
 >;
 
 type State = {
   plans: InstallmentPlan[];
+
   addPlan: (payload: Omit<InstallmentPlan, "id" | "paid">) => void;
   togglePaid: (planId: string, index: number) => void;
 
-  // ✅ novos
-  updatePlan: (planId: string, patch: UpdatePlanPatch) => void;
+  updatePlan: (planId: string, patch: UpdatePayload) => void;
   removePlan: (planId: string) => void;
+
+  // útil pra "desfazer" exclusão via toast
+  restorePlan: (plan: InstallmentPlan, index?: number) => void;
 };
 
 function createId() {
-  // tenta UUID nativo se existir (nem todo mobile/WebView tem)
   try {
     const c = globalThis.crypto as Crypto | undefined;
     if (c?.randomUUID) return c.randomUUID();
   } catch {
     // ignore
   }
-
-  // fallback simples (sem deps)
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function clampCount(n: number) {
-  if (!Number.isFinite(n)) return 1;
-  return Math.max(1, Math.floor(n));
+  return Number.isFinite(n) ? Math.max(1, Math.floor(n)) : 1;
+}
+
+function normalizePaid(prev: boolean[], nextCount: number) {
+  const safeCount = clampCount(nextCount);
+
+  if (prev.length === safeCount) return prev;
+
+  if (prev.length > safeCount) return prev.slice(0, safeCount);
+
+  // prev.length < safeCount -> completa com false
+  return [...prev, ...Array.from({ length: safeCount - prev.length }, () => false)];
 }
 
 export const useInstallmentsStore = create<State>()(
@@ -69,8 +79,7 @@ export const useInstallmentsStore = create<State>()(
           plans: get().plans.map((p) => {
             if (p.id !== planId) return p;
 
-            // segurança: index inválido não faz nada
-            if (index < 0 || index >= p.paid.length) return p;
+            if (index < 0 || index >= p.count) return p;
 
             const paid = [...p.paid];
             paid[index] = !paid[index];
@@ -85,27 +94,14 @@ export const useInstallmentsStore = create<State>()(
           plans: get().plans.map((p) => {
             if (p.id !== planId) return p;
 
-            // aplica patch
-            const next: InstallmentPlan = { ...p, ...patch };
+            const nextCount = patch.count != null ? clampCount(patch.count) : p.count;
 
-            // se count mudou, ajusta paid mantendo o que já estava pago
-            if (patch.count != null && patch.count !== p.count) {
-              const target = clampCount(patch.count);
-
-              const paid = (p.paid ?? []).slice(0, target);
-              while (paid.length < target) paid.push(false);
-
-              next.count = target;
-              next.paid = paid;
-            } else {
-              // garantia extra: paid sempre do tamanho do count atual
-              const target = clampCount(next.count);
-              const paid = (next.paid ?? []).slice(0, target);
-              while (paid.length < target) paid.push(false);
-
-              next.count = target;
-              next.paid = paid;
-            }
+            const next: InstallmentPlan = {
+              ...p,
+              ...patch,
+              count: nextCount,
+              paid: normalizePaid(p.paid, nextCount),
+            };
 
             return next;
           }),
@@ -113,9 +109,18 @@ export const useInstallmentsStore = create<State>()(
       },
 
       removePlan: (planId) => {
-        set({
-          plans: get().plans.filter((p) => p.id !== planId),
-        });
+        set({ plans: get().plans.filter((p) => p.id !== planId) });
+      },
+
+      restorePlan: (plan, index) => {
+        const current = get().plans.filter((p) => p.id !== plan.id);
+
+        const next = [...current];
+        const i =
+          index == null ? next.length : Math.max(0, Math.min(index, next.length));
+
+        next.splice(i, 0, plan);
+        set({ plans: next });
       },
     }),
     { name: "my-finances.installments.v1" },
