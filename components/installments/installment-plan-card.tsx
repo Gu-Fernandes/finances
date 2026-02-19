@@ -29,10 +29,10 @@ import {
 } from "@/components/ui/table";
 
 import {
-  InstallmentPlan,
-  useInstallmentsStore,
-} from "@/store/installments.store";
-import { cn } from "@/lib/utils";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 import {
   AlertDialog,
@@ -45,14 +45,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-import { EditInstallmentDialog } from "./edit-installment-dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
+  InstallmentPlan,
+  useInstallmentsStore,
+} from "@/store/installments.store";
+import { cn } from "@/lib/utils";
+
+import { EditInstallmentDialog } from "./edit-installment-dialog";
 
 function formatBRL(cents: number) {
   return ((cents || 0) / 100).toLocaleString("pt-BR", {
@@ -119,6 +118,9 @@ export function InstallmentPlanCard({ plan }: Props) {
   const removePlan = useInstallmentsStore((s) => s.removePlan);
 
   const [expanded, setExpanded] = React.useState(false);
+
+  // ações
+  const [actionsOpen, setActionsOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
 
@@ -193,65 +195,78 @@ export function InstallmentPlanCard({ plan }: Props) {
 
   const canMarkNext = nextOpenIndex != null && paidCount < plan.count;
 
+  function openEdit() {
+    setActionsOpen(false);
+    setEditOpen(true);
+  }
+
+  function openDelete() {
+    setActionsOpen(false);
+    setDeleteOpen(true);
+  }
+
   return (
     <>
       <Card className="h-full">
         <CardHeader className="space-y-4">
-          {/* Título + Status + Ações */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <div className="rounded-md border bg-primary/5 p-1.5 text-primary">
+          {/* ✅ OPÇÃO 2: Título em cima, ações podem descer no mobile sem quebrar */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            {/* ESQUERDA (flexível) */}
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="shrink-0 rounded-md border bg-primary/5 p-1.5 text-primary">
                   <ReceiptText className="h-4 w-4" />
                 </div>
 
-                <CardTitle className="truncate text-lg">{plan.name}</CardTitle>
+                <div className="min-w-0">
+                  <CardTitle className="truncate text-lg">
+                    {plan.name}
+                  </CardTitle>
+                </div>
               </div>
 
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 truncate text-xs text-muted-foreground">
                 {plan.count}x de {formatBRL(plan.installmentCents)}
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Badge variant={status.variant} className="gap-1.5">
-                <status.Icon className="h-3.5 w-3.5" />
-                {status.label}
+            {/* DIREITA (fixa) */}
+            <div className="flex shrink-0 items-center justify-end gap-2 whitespace-nowrap">
+              <Badge variant={status.variant} className="gap-1.5 max-w-[140px]">
+                <status.Icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{status.label}</span>
               </Badge>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+              {/* Ações (sem dropdown-menu) */}
+              <Popover open={actionsOpen} onOpenChange={setActionsOpen}>
+                <PopoverTrigger asChild>
                   <Button variant="outline" size="icon-sm" aria-label="Ações">
                     <MoreVertical className="h-4 w-4" />
                   </Button>
-                </DropdownMenuTrigger>
+                </PopoverTrigger>
 
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    className="gap-2"
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      setEditOpen(true);
-                    }}
+                <PopoverContent align="end" className="w-44 p-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                    onClick={openEdit}
                   >
                     <Pencil className="h-4 w-4" />
                     Editar
-                  </DropdownMenuItem>
+                  </Button>
 
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    className="gap-2 text-destructive focus:text-destructive"
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      setDeleteOpen(true);
-                    }}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+                    onClick={openDelete}
                   >
                     <Trash2 className="h-4 w-4" />
                     Excluir
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </Button>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
@@ -420,7 +435,7 @@ export function InstallmentPlanCard({ plan }: Props) {
         </CardContent>
       </Card>
 
-      {/* Dialog editar */}
+      {/* Editar */}
       <EditInstallmentDialog
         open={editOpen}
         onOpenChange={setEditOpen}
