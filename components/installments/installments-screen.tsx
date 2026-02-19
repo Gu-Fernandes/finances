@@ -65,14 +65,18 @@ function InstallmentsSummary({ plans }: { plans: Array<any> }) {
   return (
     <Card className="bg-background/60 backdrop-blur">
       <CardContent className="grid gap-4 p-4 sm:grid-cols-3">
-        <SummaryItem label="Planos" value={summary.plansCount} Icon={Layers3} />
+        <SummaryItem
+          label="Contas parceladas"
+          value={summary.plansCount}
+          Icon={Layers3}
+        />
         <SummaryItem
           label="Total mensal"
           value={formatBRLFromCents(summary.monthlyCents)}
           Icon={CalendarClock}
         />
         <SummaryItem
-          label="Total contratado"
+          label="Total a pagar"
           value={formatBRLFromCents(summary.totalCents)}
           Icon={Wallet}
         />
