@@ -40,9 +40,9 @@ export function AssistantComposer({ onSend, disabled }: Props) {
           onClick={submit}
           disabled={disabled || !value.trim()}
           aria-label="Enviar mensagem"
-          className="shrink-0"
+          className="shrink-0 rounded-full"
         >
-          <SendHorizonal className="h-4 w-4" />
+          <SendHorizonal className="h-5 w-5" />
         </Button>
       </div>
     </div>
