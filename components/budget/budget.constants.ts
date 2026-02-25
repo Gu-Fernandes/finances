@@ -1,5 +1,3 @@
-import { BUDGET_CATEGORIES } from "@/store/app-store";
-
 export const MONTHS = [
   { value: "01", label: "Janeiro" },
   { value: "02", label: "Fevereiro" },
@@ -14,8 +12,6 @@ export const MONTHS = [
   { value: "11", label: "Novembro" },
   { value: "12", label: "Dezembro" },
 ] as const;
-
-export const CARD_CATEGORIES = BUDGET_CATEGORIES;
 
 export function formatBRL(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -39,15 +35,3 @@ export function parseMoneyBR(input: string) {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, n);
 }
-
-export const FIXED_BILL_OPTIONS = [
-  "Academia",
-  "Celular",
-  "DAS MEI",
-  "Cabelo",
-  "ChatGPT",
-  "Spotify",
-  "Netflix",
-  "iCloud",
-  "Viagem",
-] as const;

@@ -10,23 +10,6 @@ import React, {
 const STORAGE_KEY = "finances-app:v1";
 const VERSION = 1 as const;
 
-export const BUDGET_CATEGORIES = [
-  "Mercado",
-  "Uber",
-  "iFood",
-  "Inter",
-  "Nubank",
-  "Roupa",
-  "Fármacia",
-  "Gasolina",
-  "Livro",
-  "Shopee",
-  "Presente",
-  "Outros",
-] as const;
-
-export type BudgetCategory = (typeof BUDGET_CATEGORIES)[number];
-
 export const INVESTMENTS_TABS = [
   "fixedIncome",
   "stocks",
@@ -108,37 +91,41 @@ export type AppData = {
   };
 };
 
-export const DEFAULT_BUDGET_MONTH: BudgetMonthData = {
-  incomes: [],
-  fixedBills: [],
-  cardExpenses: [],
-  miscExpenses: [], // ✅ novo
-  invested: { amount: "" },
-};
-
-export function createBudgetMonth(): BudgetMonthData {
+function createDefaultBudgetMonth(): BudgetMonthData {
   return {
     incomes: [],
     fixedBills: [],
     cardExpenses: [],
-    miscExpenses: [], // ✅ novo
+    miscExpenses: [],
     invested: { amount: "" },
   };
 }
 
-const DEFAULT_DATA: AppData = {
-  piggyBank: {},
-  budget: { selectedMonthKey: undefined, months: {} },
-  investments: {
+export const DEFAULT_BUDGET_MONTH: BudgetMonthData = createDefaultBudgetMonth();
+
+export function createBudgetMonth(): BudgetMonthData {
+  return createDefaultBudgetMonth();
+}
+
+function createDefaultInvestmentsData(): InvestmentsData {
+  return {
     fixedIncome: [],
     funds: [],
     treasuryDirect: [],
     crypto: [],
     stocks: [],
     ui: { activeTab: "fixedIncome" },
-  },
-  meta: { version: VERSION, updatedAt: "" },
-};
+  };
+}
+
+function createDefaultAppData(): AppData {
+  return {
+    piggyBank: {},
+    budget: { selectedMonthKey: undefined, months: {} },
+    investments: createDefaultInvestmentsData(),
+    meta: { version: VERSION, updatedAt: "" },
+  };
+}
 
 function isOldDefaultIncomeRow(
   incomes: Array<{ label: string; amount: string }>,
@@ -156,6 +143,7 @@ function normalizeMonthData(input: unknown): BudgetMonthData {
   const investedObj = isRecord(obj["invested"])
     ? (obj["invested"] as UnknownRecord)
     : {};
+
   const invested = { amount: str(investedObj["amount"]) };
 
   const fixedBills = (
@@ -173,16 +161,13 @@ function normalizeMonthData(input: unknown): BudgetMonthData {
     Array.isArray(obj["cardExpenses"]) ? obj["cardExpenses"] : []
   ).map((it, idx) => {
     const row: UnknownRecord = isRecord(it) ? it : {};
-    const category = str(row["category"]);
-
     return {
       id: str(row["id"]) || `card-${idx + 1}`,
-      category,
+      category: str(row["category"]),
       amount: str(row["amount"]),
     };
   });
 
-  // ✅ novo: miscExpenses
   const miscExpenses = (
     Array.isArray(obj["miscExpenses"]) ? obj["miscExpenses"] : []
   ).map((it, idx) => {
@@ -194,8 +179,10 @@ function normalizeMonthData(input: unknown): BudgetMonthData {
     };
   });
 
-  if (Array.isArray(obj["incomes"])) {
-    const incomes = obj["incomes"].map((it, idx) => {
+  const normalizeIncomes = (source: unknown) => {
+    if (!Array.isArray(source)) return null;
+
+    const incomes = source.map((it, idx) => {
       const row: UnknownRecord = isRecord(it) ? it : {};
       return {
         id: str(row["id"]) || `income-${idx + 1}`,
@@ -204,11 +191,16 @@ function normalizeMonthData(input: unknown): BudgetMonthData {
       };
     });
 
+    return isOldDefaultIncomeRow(incomes) ? [] : incomes;
+  };
+
+  const directIncomes = normalizeIncomes(obj["incomes"]);
+  if (directIncomes) {
     return {
-      incomes: isOldDefaultIncomeRow(incomes) ? [] : incomes,
+      incomes: directIncomes,
       fixedBills,
       cardExpenses,
-      miscExpenses, // ✅ novo
+      miscExpenses,
       invested,
     };
   }
@@ -231,7 +223,7 @@ function normalizeMonthData(input: unknown): BudgetMonthData {
     incomes: isOldDefaultIncomeRow(legacyAsArray) ? [] : legacyAsArray,
     fixedBills,
     cardExpenses,
-    miscExpenses, // ✅ novo
+    miscExpenses,
     invested,
   };
 }
@@ -241,6 +233,7 @@ function normalizeFixedIncomeList(
   idPrefix: string,
 ): FixedIncomeItem[] {
   const arr = Array.isArray(rawList) ? rawList : [];
+
   return arr.map((it, idx) => {
     const row: UnknownRecord = isRecord(it) ? it : {};
     return {
@@ -258,41 +251,15 @@ function normalizeStocksList(rawList: unknown): StockItem[] {
   return arr.map((it, idx) => {
     const row: UnknownRecord = isRecord(it) ? it : {};
 
-    const avgPrice = row["avgPriceCents"];
-    const currentQuote = row["currentQuoteCents"];
-
-    const dividendCents = row["dividendCents"];
-    const dividendMonths = row["dividendMonths"];
-    const dividendPerShareCents = row["dividendPerShareCents"];
-
     return {
-      id:
-        typeof row["id"] === "string" ? (row["id"] as string) : `st-${idx + 1}`,
-      name: typeof row["name"] === "string" ? (row["name"] as string) : "",
-      quantity:
-        typeof row["quantity"] === "string" ? (row["quantity"] as string) : "",
-
-      avgPriceCents:
-        typeof avgPrice === "number" && Number.isFinite(avgPrice)
-          ? avgPrice
-          : 0,
-      currentQuoteCents:
-        typeof currentQuote === "number" && Number.isFinite(currentQuote)
-          ? currentQuote
-          : 0,
-
-      dividendCents:
-        typeof dividendCents === "number" && Number.isFinite(dividendCents)
-          ? dividendCents
-          : 0,
-      dividendMonths:
-        typeof dividendMonths === "string" ? (dividendMonths as string) : "",
-
-      dividendPerShareCents:
-        typeof dividendPerShareCents === "number" &&
-        Number.isFinite(dividendPerShareCents)
-          ? dividendPerShareCents
-          : 0,
+      id: str(row["id"]) || `st-${idx + 1}`,
+      name: str(row["name"]),
+      quantity: str(row["quantity"]),
+      avgPriceCents: num(row["avgPriceCents"]),
+      currentQuoteCents: num(row["currentQuoteCents"]),
+      dividendCents: num(row["dividendCents"]),
+      dividendMonths: str(row["dividendMonths"]),
+      dividendPerShareCents: num(row["dividendPerShareCents"]),
     };
   });
 }
@@ -324,7 +291,7 @@ function safeParse(raw: string | null): AppData | null {
       ? (parsed["piggyBank"] as UnknownRecord)
       : {};
 
-    const piggyBank: Record<string, string> = Object.fromEntries(
+    const piggyBank = Object.fromEntries(
       Object.entries(piggyBankRaw).filter(([, v]) => typeof v === "string"),
     ) as Record<string, string>;
 
@@ -347,11 +314,12 @@ function safeParse(raw: string | null): AppData | null {
     const uiRaw = isRecord(investmentsRaw["ui"])
       ? (investmentsRaw["ui"] as UnknownRecord)
       : {};
+
     const activeTab: InvestmentsTabKey = isOneOf(
       INVESTMENTS_TABS,
       uiRaw["activeTab"],
     )
-      ? (uiRaw["activeTab"] as InvestmentsTabKey)
+      ? uiRaw["activeTab"]
       : "fixedIncome";
 
     return {
@@ -379,13 +347,18 @@ function safeParse(raw: string | null): AppData | null {
 }
 
 function loadFromStorage(): AppData {
-  if (typeof window === "undefined") return DEFAULT_DATA;
-  return safeParse(localStorage.getItem(STORAGE_KEY)) ?? DEFAULT_DATA;
+  if (typeof window === "undefined") return createDefaultAppData();
+  return (
+    safeParse(window.localStorage.getItem(STORAGE_KEY)) ??
+    createDefaultAppData()
+  );
 }
 
 function saveToStorage(data: AppData) {
+  if (typeof window === "undefined") return;
+
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch {}
 }
 
@@ -396,12 +369,12 @@ type Snapshot = {
 };
 
 const SERVER_SNAPSHOT: Snapshot = {
-  data: DEFAULT_DATA,
+  data: createDefaultAppData(),
   ready: false,
   currentMonthKey: "",
 };
 
-let _data: AppData = DEFAULT_DATA;
+let _data: AppData = createDefaultAppData();
 let _ready = false;
 let _currentMonthKey = "";
 let _snapshot: Snapshot = SERVER_SNAPSHOT;
@@ -409,12 +382,11 @@ let _snapshot: Snapshot = SERVER_SNAPSHOT;
 const _listeners = new Set<() => void>();
 
 function emit() {
-  for (const l of _listeners) l();
+  for (const listener of _listeners) listener();
 }
 
 function initClientOnce() {
-  if (_ready) return;
-  if (typeof window === "undefined") return;
+  if (_ready || typeof window === "undefined") return;
 
   _data = loadFromStorage();
 
@@ -422,12 +394,18 @@ function initClientOnce() {
   _currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
   _ready = true;
-  _snapshot = { data: _data, ready: _ready, currentMonthKey: _currentMonthKey };
+  _snapshot = {
+    data: _data,
+    ready: _ready,
+    currentMonthKey: _currentMonthKey,
+  };
 }
 
 function subscribe(listener: () => void) {
   _listeners.add(listener);
-  return () => _listeners.delete(listener);
+  return () => {
+    _listeners.delete(listener);
+  };
 }
 
 function getSnapshot(): Snapshot {
@@ -449,7 +427,12 @@ function setStoreData(updater: (prev: AppData) => AppData) {
     },
   };
 
-  _snapshot = { data: _data, ready: _ready, currentMonthKey: _currentMonthKey };
+  _snapshot = {
+    data: _data,
+    ready: _ready,
+    currentMonthKey: _currentMonthKey,
+  };
+
   saveToStorage(_data);
   emit();
 }
@@ -471,15 +454,16 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     () => SERVER_SNAPSHOT,
   );
 
-  const value = useMemo<AppStoreContextValue>(() => {
-    return {
+  const value = useMemo<AppStoreContextValue>(
+    () => ({
       data: snap.data,
       ready: snap.ready,
       currentMonthKey: snap.currentMonthKey,
-      update: (updater) => setStoreData(updater),
-      reset: () => setStoreData(() => DEFAULT_DATA),
-    };
-  }, [snap.data, snap.ready, snap.currentMonthKey]);
+      update: setStoreData,
+      reset: () => setStoreData(() => createDefaultAppData()),
+    }),
+    [snap.data, snap.ready, snap.currentMonthKey],
+  );
 
   return (
     <AppStoreContext.Provider value={value}>

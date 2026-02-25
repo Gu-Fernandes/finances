@@ -6,12 +6,41 @@ import {
   type FixedIncomeItem,
   type StockItem,
   type InvestmentsTabKey,
+  type InvestmentsData,
 } from "@/store/app-store";
 
+type FixedListKey = "fixedIncome" | "funds" | "treasuryDirect" | "crypto";
+
+const DEFAULT_NAMES: Record<FixedListKey, string> = {
+  fixedIncome: "Renda fixa",
+  funds: "Fundos",
+  treasuryDirect: "Tesouro direto",
+  crypto: "Cripto",
+};
+
 function createId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto)
-    return crypto.randomUUID();
+  try {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+      return crypto.randomUUID();
+    }
+  } catch {}
+
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function createEmptyInvestments(): InvestmentsData {
+  return {
+    fixedIncome: [],
+    funds: [],
+    treasuryDirect: [],
+    crypto: [],
+    stocks: [],
+    ui: { activeTab: "fixedIncome" },
+  };
+}
+
+function ensureInvestments(prev: AppData): InvestmentsData {
+  return prev.investments ?? createEmptyInvestments();
 }
 
 function createFixedIncomeItem(defaultName: string): FixedIncomeItem {
@@ -32,36 +61,14 @@ function createStockItem(defaultName = "Ação"): StockItem {
     currentQuoteCents: 0,
     dividendCents: 0,
     dividendMonths: "",
-    dividendPerShareCents: 0, // ✅ garante persistência
+    dividendPerShareCents: 0,
   };
 }
-
-function ensureInvestments(prev: AppData) {
-  return (
-    prev.investments ?? {
-      fixedIncome: [],
-      funds: [],
-      treasuryDirect: [],
-      crypto: [],
-      stocks: [],
-      ui: { activeTab: "fixedIncome" as InvestmentsTabKey },
-    }
-  );
-}
-
-type FixedListKey = "fixedIncome" | "funds" | "treasuryDirect" | "crypto";
-
-const DEFAULT_NAMES: Record<FixedListKey, string> = {
-  fixedIncome: "Renda fixa",
-  funds: "Fundos",
-  treasuryDirect: "Tesouro direto",
-  crypto: "Cripto",
-};
 
 export function useInvestmentsStore() {
   const { data, update, ready } = useAppStore();
 
-  const investments = data.investments ?? ensureInvestments(data);
+  const investments = data.investments ?? createEmptyInvestments();
 
   const fixedIncome = investments.fixedIncome ?? [];
   const funds = investments.funds ?? [];
@@ -75,18 +82,28 @@ export function useInvestmentsStore() {
     update(updater);
   };
 
+  const updateInvestmentsState = (
+    updater: (inv: InvestmentsData, prevApp: AppData) => InvestmentsData | null,
+  ) => {
+    setInvestments((prev) => {
+      const currentInv = ensureInvestments(prev);
+      const nextInv = updater(currentInv, prev);
+
+      if (!nextInv || nextInv === currentInv) return prev;
+      return { ...prev, investments: nextInv };
+    });
+  };
+
   const setFixedList = (
     key: FixedListKey,
     next: FixedIncomeItem[] | ((prev: FixedIncomeItem[]) => FixedIncomeItem[]),
   ) => {
-    setInvestments((prev) => {
-      const inv = ensureInvestments(prev);
+    updateInvestmentsState((inv) => {
       const current = inv[key] ?? [];
       const updated = typeof next === "function" ? next(current) : next;
 
-      if (updated === current) return prev;
-
-      return { ...prev, investments: { ...inv, [key]: updated } };
+      if (updated === current) return null;
+      return { ...inv, [key]: updated };
     });
   };
 
@@ -106,34 +123,38 @@ export function useInvestmentsStore() {
     );
 
   const removeFixedListItem = (key: FixedListKey, id: string) =>
-    setFixedList(key, (prev) => prev.filter((i) => i.id !== id)); // ✅ permite ficar vazio
+    setFixedList(key, (prev) => prev.filter((it) => it.id !== id));
 
   const setStocks = (
     next: StockItem[] | ((prev: StockItem[]) => StockItem[]),
   ) => {
-    setInvestments((prev) => {
-      const inv = ensureInvestments(prev);
+    updateInvestmentsState((inv) => {
       const current = inv.stocks ?? [];
       const updated = typeof next === "function" ? next(current) : next;
 
-      if (updated === current) return prev;
-
-      return { ...prev, investments: { ...inv, stocks: updated } };
+      if (updated === current) return null;
+      return { ...inv, stocks: updated };
     });
   };
 
-  // ✅ migração/normalização: garante dividendPerShareCents mesmo em dados antigos
   const ensureStocksSeeded = () =>
-    setStocks((prev) => {
-      if (prev.length === 0) return prev;
+    updateInvestmentsState((inv) => {
+      const current = inv.stocks ?? [];
 
-      const anyMissing = prev.some((it) => it.dividendPerShareCents == null);
-      if (!anyMissing) return prev;
+      if (!inv.stocks) return { ...inv, stocks: [] };
 
-      return prev.map((it) => ({
-        ...it,
-        dividendPerShareCents: it.dividendPerShareCents ?? 0,
-      }));
+      if (current.length === 0) return inv;
+
+      const anyMissing = current.some((it) => it.dividendPerShareCents == null);
+      if (!anyMissing) return inv;
+
+      return {
+        ...inv,
+        stocks: current.map((it) => ({
+          ...it,
+          dividendPerShareCents: it.dividendPerShareCents ?? 0,
+        })),
+      };
     });
 
   const addStockItem = () =>
@@ -145,23 +166,25 @@ export function useInvestmentsStore() {
     );
 
   const removeStockItem = (id: string) =>
-    setStocks((prev) => prev.filter((i) => i.id !== id)); // ✅ permite ficar vazio
+    setStocks((prev) => prev.filter((it) => it.id !== id));
 
   const setActiveTab = (tab: InvestmentsTabKey) => {
-    setInvestments((prev) => {
-      const inv = ensureInvestments(prev);
+    updateInvestmentsState((inv) => {
       const current = inv.ui?.activeTab ?? "fixedIncome";
-      if (current === tab) return prev;
+      if (current === tab) return null;
 
       return {
-        ...prev,
-        investments: {
-          ...inv,
-          ui: { ...(inv.ui ?? { activeTab: "fixedIncome" }), activeTab: tab },
-        },
+        ...inv,
+        ui: { ...(inv.ui ?? { activeTab: "fixedIncome" }), activeTab: tab },
       };
     });
   };
+
+  const ensureFixedListKey = (key: FixedListKey) =>
+    updateInvestmentsState((inv) => {
+      if (inv[key]) return inv;
+      return { ...inv, [key]: [] };
+    });
 
   return {
     ready,
@@ -175,14 +198,14 @@ export function useInvestmentsStore() {
       updateFixedListItem("fixedIncome", id, patch),
     removeFixedIncomeItem: (id: string) =>
       removeFixedListItem("fixedIncome", id),
-    ensureFixedIncomeSeeded: () => setFixedList("fixedIncome", (prev) => prev),
+    ensureFixedIncomeSeeded: () => ensureFixedListKey("fixedIncome"),
 
     funds,
     addFundItem: () => addFixedListItem("funds"),
     updateFundItem: (id: string, patch: Partial<FixedIncomeItem>) =>
       updateFixedListItem("funds", id, patch),
     removeFundItem: (id: string) => removeFixedListItem("funds", id),
-    ensureFundsSeeded: () => setFixedList("funds", (prev) => prev),
+    ensureFundsSeeded: () => ensureFixedListKey("funds"),
 
     treasuryDirect,
     addTreasuryDirectItem: () => addFixedListItem("treasuryDirect"),
@@ -190,15 +213,14 @@ export function useInvestmentsStore() {
       updateFixedListItem("treasuryDirect", id, patch),
     removeTreasuryDirectItem: (id: string) =>
       removeFixedListItem("treasuryDirect", id),
-    ensureTreasuryDirectSeeded: () =>
-      setFixedList("treasuryDirect", (prev) => prev),
+    ensureTreasuryDirectSeeded: () => ensureFixedListKey("treasuryDirect"),
 
     crypto,
     addCryptoItem: () => addFixedListItem("crypto"),
     updateCryptoItem: (id: string, patch: Partial<FixedIncomeItem>) =>
       updateFixedListItem("crypto", id, patch),
     removeCryptoItem: (id: string) => removeFixedListItem("crypto", id),
-    ensureCryptoSeeded: () => setFixedList("crypto", (prev) => prev),
+    ensureCryptoSeeded: () => ensureFixedListKey("crypto"),
 
     stocks,
     addStockItem,

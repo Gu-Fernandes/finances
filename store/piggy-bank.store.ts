@@ -5,7 +5,7 @@ import { useAppStore, type AppData } from "@/store/app-store";
 export function usePiggyBankStore() {
   const { data, update } = useAppStore();
 
-  const values = data.piggyBank;
+  const values = data.piggyBank ?? {};
 
   const setValues = (
     next:
@@ -15,6 +15,8 @@ export function usePiggyBankStore() {
     update((prev: AppData) => {
       const current = prev.piggyBank ?? {};
       const updated = typeof next === "function" ? next(current) : next;
+
+      if (updated === current) return prev;
 
       return {
         ...prev,

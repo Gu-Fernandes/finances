@@ -11,19 +11,18 @@ export type InstallmentPlan = {
 };
 
 type UpdatePayload = Partial<
-  Pick<InstallmentPlan, "name" | "installmentCents" | "count" | "firstDueDateISO">
+  Pick<
+    InstallmentPlan,
+    "name" | "installmentCents" | "count" | "firstDueDateISO"
+  >
 >;
 
 type State = {
   plans: InstallmentPlan[];
-
   addPlan: (payload: Omit<InstallmentPlan, "id" | "paid">) => void;
   togglePaid: (planId: string, index: number) => void;
-
   updatePlan: (planId: string, patch: UpdatePayload) => void;
   removePlan: (planId: string) => void;
-
-  // útil pra "desfazer" exclusão via toast
   restorePlan: (plan: InstallmentPlan, index?: number) => void;
 };
 
@@ -31,9 +30,7 @@ function createId() {
   try {
     const c = globalThis.crypto as Crypto | undefined;
     if (c?.randomUUID) return c.randomUUID();
-  } catch {
-    // ignore
-  }
+  } catch {}
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
@@ -45,40 +42,40 @@ function normalizePaid(prev: boolean[], nextCount: number) {
   const safeCount = clampCount(nextCount);
 
   if (prev.length === safeCount) return prev;
-
   if (prev.length > safeCount) return prev.slice(0, safeCount);
 
-  // prev.length < safeCount -> completa com false
-  return [...prev, ...Array.from({ length: safeCount - prev.length }, () => false)];
+  return [
+    ...prev,
+    ...Array.from({ length: safeCount - prev.length }, () => false),
+  ];
 }
 
 export const useInstallmentsStore = create<State>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       plans: [],
 
-      addPlan: (payload) => {
-        const id = createId();
-        const count = clampCount(payload.count);
+      addPlan: (payload) =>
+        set((state) => {
+          const count = clampCount(payload.count);
 
-        set({
-          plans: [
-            ...get().plans,
-            {
-              id,
-              ...payload,
-              count,
-              paid: Array.from({ length: count }, () => false),
-            },
-          ],
-        });
-      },
+          return {
+            plans: [
+              ...state.plans,
+              {
+                id: createId(),
+                ...payload,
+                count,
+                paid: Array.from({ length: count }, () => false),
+              },
+            ],
+          };
+        }),
 
-      togglePaid: (planId, index) => {
-        set({
-          plans: get().plans.map((p) => {
+      togglePaid: (planId, index) =>
+        set((state) => ({
+          plans: state.plans.map((p) => {
             if (p.id !== planId) return p;
-
             if (index < 0 || index >= p.count) return p;
 
             const paid = [...p.paid];
@@ -86,42 +83,51 @@ export const useInstallmentsStore = create<State>()(
 
             return { ...p, paid };
           }),
-        });
-      },
+        })),
 
-      updatePlan: (planId, patch) => {
-        set({
-          plans: get().plans.map((p) => {
+      updatePlan: (planId, patch) =>
+        set((state) => ({
+          plans: state.plans.map((p) => {
             if (p.id !== planId) return p;
 
-            const nextCount = patch.count != null ? clampCount(patch.count) : p.count;
+            const nextCount =
+              patch.count != null ? clampCount(patch.count) : p.count;
 
-            const next: InstallmentPlan = {
+            return {
               ...p,
               ...patch,
               count: nextCount,
               paid: normalizePaid(p.paid, nextCount),
             };
-
-            return next;
           }),
-        });
-      },
+        })),
 
-      removePlan: (planId) => {
-        set({ plans: get().plans.filter((p) => p.id !== planId) });
-      },
+      removePlan: (planId) =>
+        set((state) => ({
+          plans: state.plans.filter((p) => p.id !== planId),
+        })),
 
-      restorePlan: (plan, index) => {
-        const current = get().plans.filter((p) => p.id !== plan.id);
+      restorePlan: (plan, index) =>
+        set((state) => {
+          const current = state.plans.filter((p) => p.id !== plan.id);
+          const next = [...current];
 
-        const next = [...current];
-        const i =
-          index == null ? next.length : Math.max(0, Math.min(index, next.length));
+          const safeCount = clampCount(plan.count);
+          const normalizedPlan: InstallmentPlan = {
+            ...plan,
+            count: safeCount,
+            paid: normalizePaid(plan.paid ?? [], safeCount),
+          };
 
-        next.splice(i, 0, plan);
-        set({ plans: next });
-      },
+          const i =
+            index == null
+              ? next.length
+              : Math.max(0, Math.min(index, next.length));
+
+          next.splice(i, 0, normalizedPlan);
+
+          return { plans: next };
+        }),
     }),
     { name: "my-finances.installments.v1" },
   ),

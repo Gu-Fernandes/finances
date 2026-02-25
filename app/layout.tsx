@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { AppStoreProvider } from "@/store/app-store";
 import { Toaster } from "sonner";
+import { AssistantLauncher } from "@/components/assistant/assistant-launcher";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,7 +31,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}
       >
-        <AppStoreProvider>{children}</AppStoreProvider>
+        <AppStoreProvider>
+          {children}
+          <AssistantLauncher />
+        </AppStoreProvider>
+
         <Toaster richColors closeButton position="bottom-right" />
       </body>
     </html>

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  DEFAULT_BUDGET_MONTH,
   createBudgetMonth,
   type AppData,
   type BudgetMonthData,
@@ -22,10 +21,15 @@ function normalizeMonth(month?: BudgetMonthData): BudgetMonthData {
 }
 
 function newId() {
-  return (
-    globalThis.crypto?.randomUUID?.() ??
-    `${Date.now()}-${Math.random().toString(16).slice(2)}`
-  );
+  try {
+    return globalThis.crypto?.randomUUID?.() ?? fallbackId();
+  } catch {
+    return fallbackId();
+  }
+}
+
+function fallbackId() {
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -49,15 +53,19 @@ export function useBudgetStore() {
   const selectedMonthKey = data.budget.selectedMonthKey;
 
   const setSelectedMonthKey = (monthKey: string) => {
-    update((prev: AppData) => ({
-      ...prev,
-      budget: { ...prev.budget, selectedMonthKey: monthKey },
-    }));
+    update((prev: AppData) => {
+      if (prev.budget.selectedMonthKey === monthKey) return prev;
+
+      return {
+        ...prev,
+        budget: { ...prev.budget, selectedMonthKey: monthKey },
+      };
+    });
   };
 
   const getMonth = (monthKey: string): BudgetMonthData => {
-    const raw = data.budget.months[monthKey] ?? DEFAULT_BUDGET_MONTH;
-    return normalizeMonth(raw);
+    const raw = data.budget.months[monthKey];
+    return normalizeMonth(raw ?? createBudgetMonth());
   };
 
   const updateMonth = (
@@ -65,14 +73,8 @@ export function useBudgetStore() {
     updater: (prev: BudgetMonthData) => BudgetMonthData,
   ) => {
     update((prev: AppData) => {
-      const currentRaw = prev.budget.months[monthKey] ?? createBudgetMonth();
-      const current = normalizeMonth(currentRaw);
-
-      const updated = updater(current);
-      const nextMonth = normalizeMonth(updated);
-
-      if (nextMonth === currentRaw) return prev; // no-op (bem raro)
-      if (nextMonth === current) return prev;
+      const current = normalizeMonth(prev.budget.months[monthKey]);
+      const nextMonth = normalizeMonth(updater(current));
 
       return {
         ...prev,
@@ -87,10 +89,8 @@ export function useBudgetStore() {
     });
   };
 
-  // ✅ novo
   const getPreviousMonthKey = (monthKey: string) => prevMonthKey(monthKey);
 
-  // ✅ novo: copia contas fixas do mês anterior (somente se o mês atual estiver vazio)
   const copyFixedBillsFromPrevious = (monthKey: string) => {
     const prevKey = prevMonthKey(monthKey);
     const prevBills = getMonth(prevKey).fixedBills;
@@ -115,7 +115,7 @@ export function useBudgetStore() {
     selectedMonthKey,
     setSelectedMonthKey,
     getMonth,
-    updateMonth, 
+    updateMonth,
     getPreviousMonthKey,
     copyFixedBillsFromPrevious,
   };
