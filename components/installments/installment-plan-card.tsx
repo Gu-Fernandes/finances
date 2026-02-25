@@ -138,8 +138,6 @@ export function InstallmentPlanCard({ plan }: Props) {
     return acc;
   }, [plan.paid]);
 
-  const remainingCount = Math.max(0, plan.count - paidCount);
-
   const installmentTotalCents = plan.installmentCents * plan.count;
   const paidCents = paidCount * plan.installmentCents;
   const remainingCents = Math.max(0, installmentTotalCents - paidCents);

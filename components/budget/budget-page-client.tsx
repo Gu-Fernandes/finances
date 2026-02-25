@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
-import type { BudgetCategory } from "@/store/app-store";
+
 import { useAppStore } from "@/store/app-store";
 import { useBudgetStore } from "@/store/budget.store";
 
@@ -129,8 +129,8 @@ export function BudgetPageClient() {
                     ...it,
                     ...patch,
                     category:
-                      (patch as Partial<{ category: BudgetCategory | "" }>)
-                        .category ?? it.category,
+                      (patch as Partial<{ category: string | "" }>).category ??
+                      it.category,
                   }
                 : it,
             ),
