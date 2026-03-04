@@ -116,24 +116,38 @@ export function BudgetPageClient() {
             ...prev,
             cardExpenses: [
               ...prev.cardExpenses,
-              { id: newId(), category: "", amount: "" },
+              {
+                id: newId(),
+                category: "",
+                amount: "",
+                description: "",
+                cardId: "",
+              },
             ],
           }))
         }
         onChangeCard={(id, patch) =>
           updateMonth(monthKey, (prev) => ({
             ...prev,
-            cardExpenses: prev.cardExpenses.map((it) =>
-              it.id === id
-                ? {
-                    ...it,
-                    ...patch,
-                    category:
-                      (patch as Partial<{ category: string | "" }>).category ??
-                      it.category,
-                  }
-                : it,
-            ),
+            cardExpenses: prev.cardExpenses.map((it) => {
+              if (it.id !== id) return it;
+
+              const p = patch as Partial<{
+                category: string;
+                amount: string;
+                description: string;
+                cardId: string;
+              }>;
+
+              return {
+                ...it,
+                ...patch,
+                category: p.category ?? it.category,
+                amount: p.amount ?? it.amount,
+                description: p.description ?? (it as any).description ?? "",
+                cardId: p.cardId ?? (it as any).cardId ?? "",
+              };
+            }),
           }))
         }
         onRemoveCard={(id) =>

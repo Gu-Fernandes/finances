@@ -43,13 +43,22 @@ export type BudgetMonthData = {
     id: string;
     category: string;
     amount: string;
+    description?: string;
+    cardId?: string;
   }>;
   invested: { amount: string };
+};
+
+export type CreditCard = {
+  id: string;
+  name: string;
+  createdAt: number;
 };
 
 export type BudgetData = {
   selectedMonthKey?: string; // "YYYY-MM"
   months: Record<string, BudgetMonthData>;
+  creditCards?: CreditCard[]; // novo
 };
 
 export type FixedIncomeItem = {
@@ -121,7 +130,7 @@ function createDefaultInvestmentsData(): InvestmentsData {
 function createDefaultAppData(): AppData {
   return {
     piggyBank: {},
-    budget: { selectedMonthKey: undefined, months: {} },
+    budget: { selectedMonthKey: undefined, months: {}, creditCards: [] },
     investments: createDefaultInvestmentsData(),
     meta: { version: VERSION, updatedAt: "" },
   };
@@ -165,6 +174,8 @@ function normalizeMonthData(input: unknown): BudgetMonthData {
       id: str(row["id"]) || `card-${idx + 1}`,
       category: str(row["category"]),
       amount: str(row["amount"]),
+      description: str(row["description"]) || "",
+      cardId: str(row["cardId"]) || "",
     };
   });
 
@@ -287,6 +298,21 @@ function safeParse(raw: string | null): AppData | null {
       Object.entries(monthsRaw).map(([k, v]) => [k, normalizeMonthData(v)]),
     ) as Record<string, BudgetMonthData>;
 
+    const creditCardsRaw = Array.isArray(budgetRaw["creditCards"])
+      ? budgetRaw["creditCards"]
+      : [];
+
+    const creditCards = creditCardsRaw
+      .map((it, idx) => {
+        const row: UnknownRecord = isRecord(it) ? it : {};
+        return {
+          id: str(row["id"]) || `cc-${idx + 1}`,
+          name: str(row["name"]),
+          createdAt: num(row["createdAt"]),
+        };
+      })
+      .filter((c) => c.name.trim().length > 0);
+
     const piggyBankRaw = isRecord(parsed["piggyBank"])
       ? (parsed["piggyBank"] as UnknownRecord)
       : {};
@@ -327,6 +353,7 @@ function safeParse(raw: string | null): AppData | null {
       budget: {
         selectedMonthKey: str(budgetRaw["selectedMonthKey"]) || undefined,
         months,
+        creditCards,
       },
       investments: {
         fixedIncome,

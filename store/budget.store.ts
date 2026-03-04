@@ -50,6 +50,52 @@ function prevMonthKey(monthKey: string) {
 export function useBudgetStore() {
   const { data, update } = useAppStore();
 
+  // -----------------------------
+  // Credit Cards (persistidos no AppData)
+  // -----------------------------
+  const creditCards = data.budget.creditCards ?? [];
+
+  const ensureCreditCard = (name: string): string | null => {
+    const clean = (name ?? "").trim();
+    if (!clean) return null;
+
+    const found = creditCards.find(
+      (c) => c.name.trim().toLowerCase() === clean.toLowerCase(),
+    );
+    if (found) return found.id;
+
+    const id = newId();
+
+    update((prev: AppData) => {
+      const list = prev.budget.creditCards ?? [];
+
+      // re-check (evita duplicar em race raro)
+      const again = list.find(
+        (c) => (c.name ?? "").trim().toLowerCase() === clean.toLowerCase(),
+      );
+      if (again) return prev;
+
+      return {
+        ...prev,
+        budget: {
+          ...prev.budget,
+          creditCards: [...list, { id, name: clean, createdAt: Date.now() }],
+        },
+      };
+    });
+
+    return id;
+  };
+
+  const getCreditCardName = (id?: string) => {
+    const key = (id ?? "").trim();
+    if (!key) return "";
+    return creditCards.find((c) => c.id === key)?.name ?? "";
+  };
+
+  // -----------------------------
+  // Budget Month
+  // -----------------------------
   const selectedMonthKey = data.budget.selectedMonthKey;
 
   const setSelectedMonthKey = (monthKey: string) => {
@@ -112,6 +158,12 @@ export function useBudgetStore() {
   };
 
   return {
+    // cards
+    creditCards,
+    ensureCreditCard,
+    getCreditCardName,
+
+    // budget
     selectedMonthKey,
     setSelectedMonthKey,
     getMonth,
