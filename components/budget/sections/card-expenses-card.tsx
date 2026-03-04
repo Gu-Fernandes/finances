@@ -72,7 +72,11 @@ function keyOf(it: Item) {
   return (it.cardId ?? "").trim() || UNASSIGNED;
 }
 
-/* ---------------------------- Subcomponents -------------------------- */
+const isEmptyText = (s?: string) => (s ?? "").trim().length === 0;
+const amountIsZero = (raw?: string) => toCentsFromMasked(raw ?? "") === 0;
+
+const isBlankRow = (it: Pick<Item, "category" | "amount">) =>
+  isEmptyText(it.category) && amountIsZero(it.amount);
 
 function CardPicker({
   value,
@@ -201,9 +205,17 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
 
   const lastItem = items[items.length - 1];
   const lastItemId = lastItem?.id;
+  const editingRealId = useMemo(() => {
+    if (!editingId) return null;
+    return editingId === EDIT_LAST ? (lastItemId ?? null) : editingId;
+  }, [editingId, lastItemId]);
 
   const total = useMemo(
-    () => items.reduce((sum, it) => sum + parseMoneyBR(it.amount), 0),
+    () =>
+      items.reduce(
+        (sum, it) => (isBlankRow(it) ? sum : sum + parseMoneyBR(it.amount)),
+        0,
+      ),
     [items],
   );
 
@@ -234,10 +246,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
   }, [editingId, editingItem, lastItem]);
 
   const tryAutoRemove = (it: Item) => {
-    const emptyCat = (it.category ?? "").trim().length === 0;
-    const emptyAmount = toCentsFromMasked(it.amount) === 0;
-    const emptyCard = (it.cardId ?? "").trim().length === 0;
-    if (emptyCat && emptyAmount && emptyCard) onRemove(it.id);
+    if (isBlankRow(it)) onRemove(it.id);
   };
 
   const openEditor = (id: string, focus: "cat" | "amount") => {
@@ -310,28 +319,41 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
     const map = new Map<string, Item[]>();
 
     for (const it of items) {
+      const isEditingRow = editingRealId === it.id;
+
+      if (!isEditingRow && isBlankRow(it)) continue;
+
       const k = keyOf(it);
       const arr = map.get(k) ?? [];
       arr.push(it);
       map.set(k, arr);
     }
 
-    const list = Array.from(map.entries()).map(([cardId, list]) => ({
-      cardId,
-      name:
-        cardId === UNASSIGNED
-          ? "Sem cartão"
-          : getCreditCardName(cardId) || "Cartão",
-      items: list,
-      total: list.reduce((s, it) => s + parseMoneyBR(it.amount), 0),
-    }));
+    const list = Array.from(map.entries()).map(([cardId, list]) => {
+      const count = list.reduce((n, it) => n + (isBlankRow(it) ? 0 : 1), 0);
+      const total = list.reduce(
+        (s, it) => (isBlankRow(it) ? s : s + parseMoneyBR(it.amount)),
+        0,
+      );
+
+      return {
+        cardId,
+        name:
+          cardId === UNASSIGNED
+            ? "Sem cartão"
+            : getCreditCardName(cardId) || "Cartão",
+        items: list,
+        count,
+        total,
+      };
+    });
 
     list.sort((a, b) =>
       a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
     );
 
     return list;
-  }, [items, creditCards, getCreditCardName]);
+  }, [items, creditCards, getCreditCardName, editingRealId]);
 
   const toggleGroup = (cardId: string) => {
     setExpandedByCard((p) => ({ ...p, [cardId]: !(p[cardId] ?? false) }));
@@ -351,6 +373,16 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
           key={it.id}
           ref={editingWrapRef}
           className="rounded-xl border-b bg-background/50 p-3 shadow-sm"
+          onBlurCapture={(e) => {
+            const nextEl = e.relatedTarget as HTMLElement | null;
+
+            if (nextEl && e.currentTarget.contains(nextEl)) return;
+
+            if (nextEl?.closest?.('[data-slot="select-content"]')) return;
+
+            tryAutoRemove(editingItem ?? it);
+            setEditingId(null);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Escape") setEditingId(null);
           }}
@@ -485,7 +517,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
 
       <CardContent className="relative space-y-3 pb-4">
         {groups.map((g) => {
-          const count = g.items.length;
+          const count = g.count;
 
           const forceExpanded = editingGroupKey === g.cardId;
           const expanded = forceExpanded || expandedByCard[g.cardId] === true;
@@ -534,7 +566,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
                       preset.soft,
                     )}
                   >
-                    <CreditCard className="size-4 text-muted-foreground" />
+                    <CreditCard className={cn("size-4", preset.icon)} />
                   </span>
 
                   <div className="min-w-0">
