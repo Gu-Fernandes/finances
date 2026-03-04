@@ -1,12 +1,16 @@
 "use client";
+
 import type { CardColorId } from "@/components/budget/budget.card-colors";
 import { DEFAULT_CARD_COLOR } from "@/components/budget/budget.card-colors";
+
 import {
   createBudgetMonth,
   type AppData,
   type BudgetMonthData,
   useAppStore,
 } from "@/store/app-store";
+
+/* ------------------------------- Helpers ------------------------------- */
 
 function normalizeMonth(month?: BudgetMonthData): BudgetMonthData {
   const base = month ?? createBudgetMonth();
@@ -48,6 +52,8 @@ function prevMonthKey(monthKey: string) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 }
 
+/* -------------------------------- Store -------------------------------- */
+
 export function useBudgetStore() {
   const { data, update } = useAppStore();
 
@@ -60,19 +66,24 @@ export function useBudgetStore() {
     const clean = (name ?? "").trim();
     if (!clean) return null;
 
+    const lower = clean.toLowerCase();
+
+    // se já existe, retorna o id
     const found = creditCards.find(
-      (c) => c.name.trim().toLowerCase() === clean.toLowerCase(),
+      (c) => (c.name ?? "").trim().toLowerCase() === lower,
     );
     if (found) return found.id;
 
+    // cria novo
     const id = newId();
     const color = opts?.color ?? DEFAULT_CARD_COLOR;
 
     update((prev: AppData) => {
       const list = prev.budget.creditCards ?? [];
 
+      // re-check dentro do update para evitar race/duplicado
       const again = list.find(
-        (c) => (c.name ?? "").trim().toLowerCase() === clean.toLowerCase(),
+        (c) => (c.name ?? "").trim().toLowerCase() === lower,
       );
       if (again) return prev;
 
@@ -107,7 +118,8 @@ export function useBudgetStore() {
       if (idx < 0) return prev;
 
       const current = list[idx];
-      if ((current.color ?? DEFAULT_CARD_COLOR) === color) return prev;
+      const currentColor = current.color ?? DEFAULT_CARD_COLOR;
+      if (currentColor === color) return prev;
 
       const next = [...list];
       next[idx] = { ...current, color };

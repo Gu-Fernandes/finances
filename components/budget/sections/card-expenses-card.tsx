@@ -30,8 +30,6 @@ import { useBudgetStore } from "@/store/budget.store";
 import { formatBRL, parseMoneyBR } from "../budget.constants";
 import { BUDGET_UI } from "../budget.ui";
 
-/* ------------------------------- Types ------------------------------- */
-
 type Item = {
   id: string;
   category: string;
@@ -84,23 +82,34 @@ function CardPicker({
   ensureCard,
   onSelect,
   getCardColor,
+  setCardColor,
 }: {
   value: string;
   cards: Array<{ id: string; name: string }>;
   ensureCard: (name: string, opts?: { color?: CardColorId }) => string | null;
   onSelect: (id: string) => void;
   getCardColor: (id?: string) => CardColorId;
+  setCardColor: (id: string, color: CardColorId) => void;
 }) {
   const [createMode, setCreateMode] = useState(false);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState<CardColorId>(DEFAULT_CARD_COLOR);
 
+  const [showColor, setShowColor] = useState(false);
+
   const canCreate = newName.trim().length > 0;
+
+  const selectedId = (value ?? "").trim();
+  const selectedExists = cards.some((c) => c.id === selectedId);
+
+  useEffect(() => {
+    setShowColor(false);
+  }, [selectedId]);
 
   return (
     <div className="space-y-2">
       <Select
-        value={value || undefined}
+        value={selectedId || undefined}
         onValueChange={(v) => {
           if (v === CREATE_CARD) {
             setCreateMode(true);
@@ -134,6 +143,35 @@ function CardPicker({
           <SelectItem value={CREATE_CARD}>Adicionar novo cartão</SelectItem>
         </SelectContent>
       </Select>
+
+      {selectedExists && (
+        <div className="flex items-center justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowColor((v) => !v)}
+          >
+            Cor do cartão
+          </Button>
+        </div>
+      )}
+
+      {/* Editor de cor (aparece só quando clicar em "Cor") */}
+      {selectedExists && showColor && (
+        <div className="rounded-xl border bg-muted/10 p-3">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
+            Cor do cartão
+          </p>
+
+          <ColorSwatchPicker
+            value={getCardColor(selectedId)}
+            onChange={(newC) => setCardColor(selectedId, newC)}
+          />
+        </div>
+      )}
 
       {createMode && (
         <div className="space-y-3 rounded-xl border bg-muted/10 p-3">
@@ -174,8 +212,6 @@ function CardPicker({
   );
 }
 
-/* ------------------------------ Main Card ---------------------------- */
-
 export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
   const ui = BUDGET_UI.expense;
 
@@ -184,6 +220,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
     ensureCreditCard,
     getCreditCardName,
     getCreditCardColor,
+    setCreditCardColor,
   } = useBudgetStore();
 
   const catRef = useRef<HTMLInputElement | null>(null);
@@ -292,7 +329,10 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
 
       const wrap = editingWrapRef.current;
       if (wrap && wrap.contains(target)) return;
+      if (target.closest('[data-slot="select-trigger"]')) return;
       if (target.closest('[data-slot="select-content"]')) return;
+      if (target.closest("[data-radix-select-trigger]")) return;
+      if (target.closest("[data-radix-select-content]")) return;
 
       if (editingItem) tryAutoRemove(editingItem);
       setEditingId(null);
@@ -378,7 +418,11 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
 
             if (nextEl && e.currentTarget.contains(nextEl)) return;
 
+            if (nextEl?.closest?.('[data-slot="select-trigger"]')) return;
             if (nextEl?.closest?.('[data-slot="select-content"]')) return;
+
+            if (nextEl?.closest?.("[data-radix-select-trigger]")) return;
+            if (nextEl?.closest?.("[data-radix-select-content]")) return;
 
             tryAutoRemove(editingItem ?? it);
             setEditingId(null);
@@ -393,6 +437,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
               cards={creditCards}
               ensureCard={ensureCreditCard}
               getCardColor={getCreditCardColor}
+              setCardColor={setCreditCardColor}
               onSelect={(id) => onChange(it.id, { cardId: id })}
             />
 
