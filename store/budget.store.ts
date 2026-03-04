@@ -1,5 +1,6 @@
 "use client";
-
+import type { CardColorId } from "@/components/budget/budget.card-colors";
+import { DEFAULT_CARD_COLOR } from "@/components/budget/budget.card-colors";
 import {
   createBudgetMonth,
   type AppData,
@@ -50,12 +51,12 @@ function prevMonthKey(monthKey: string) {
 export function useBudgetStore() {
   const { data, update } = useAppStore();
 
-  // -----------------------------
-  // Credit Cards (persistidos no AppData)
-  // -----------------------------
   const creditCards = data.budget.creditCards ?? [];
 
-  const ensureCreditCard = (name: string): string | null => {
+  const ensureCreditCard = (
+    name: string,
+    opts?: { color?: CardColorId },
+  ): string | null => {
     const clean = (name ?? "").trim();
     if (!clean) return null;
 
@@ -65,11 +66,11 @@ export function useBudgetStore() {
     if (found) return found.id;
 
     const id = newId();
+    const color = opts?.color ?? DEFAULT_CARD_COLOR;
 
     update((prev: AppData) => {
       const list = prev.budget.creditCards ?? [];
 
-      // re-check (evita duplicar em race raro)
       const again = list.find(
         (c) => (c.name ?? "").trim().toLowerCase() === clean.toLowerCase(),
       );
@@ -79,12 +80,43 @@ export function useBudgetStore() {
         ...prev,
         budget: {
           ...prev.budget,
-          creditCards: [...list, { id, name: clean, createdAt: Date.now() }],
+          creditCards: [
+            ...list,
+            { id, name: clean, createdAt: Date.now(), color },
+          ],
         },
       };
     });
 
     return id;
+  };
+
+  const getCreditCardColor = (id?: string) => {
+    const key = (id ?? "").trim();
+    if (!key) return DEFAULT_CARD_COLOR;
+    return creditCards.find((c) => c.id === key)?.color ?? DEFAULT_CARD_COLOR;
+  };
+
+  const setCreditCardColor = (id: string, color: CardColorId) => {
+    const key = (id ?? "").trim();
+    if (!key) return;
+
+    update((prev: AppData) => {
+      const list = prev.budget.creditCards ?? [];
+      const idx = list.findIndex((c) => c.id === key);
+      if (idx < 0) return prev;
+
+      const current = list[idx];
+      if ((current.color ?? DEFAULT_CARD_COLOR) === color) return prev;
+
+      const next = [...list];
+      next[idx] = { ...current, color };
+
+      return {
+        ...prev,
+        budget: { ...prev.budget, creditCards: next },
+      };
+    });
   };
 
   const getCreditCardName = (id?: string) => {
@@ -93,9 +125,6 @@ export function useBudgetStore() {
     return creditCards.find((c) => c.id === key)?.name ?? "";
   };
 
-  // -----------------------------
-  // Budget Month
-  // -----------------------------
   const selectedMonthKey = data.budget.selectedMonthKey;
 
   const setSelectedMonthKey = (monthKey: string) => {
@@ -158,12 +187,11 @@ export function useBudgetStore() {
   };
 
   return {
-    // cards
     creditCards,
     ensureCreditCard,
     getCreditCardName,
-
-    // budget
+    getCreditCardColor,
+    setCreditCardColor,
     selectedMonthKey,
     setSelectedMonthKey,
     getMonth,

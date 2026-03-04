@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CreditCard, Eye, EyeOff, Plus, Trash2 } from "lucide-react";
+import { CreditCard, Plus, Trash2 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,11 +18,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+
+import { ColorSwatchPicker } from "@/components/budget/color-swatch-picker";
+import {
+  CARD_COLOR_BY_ID,
+  DEFAULT_CARD_COLOR,
+  type CardColorId,
+} from "@/components/budget/budget.card-colors";
 
 import { useBudgetStore } from "@/store/budget.store";
 import { formatBRL, parseMoneyBR } from "../budget.constants";
 import { BUDGET_UI } from "../budget.ui";
+
+/* ------------------------------- Types ------------------------------- */
 
 type Item = {
   id: string;
@@ -36,9 +46,13 @@ type Props = {
   onRemove: (id: string) => void;
 };
 
+/* ------------------------------ Constants ---------------------------- */
+
 const EDIT_LAST = "__EDIT_LAST__";
 const UNASSIGNED = "__UNASSIGNED__";
 const CREATE_CARD = "__CREATE_CARD__";
+
+/* ------------------------------- Helpers ----------------------------- */
 
 const toCentsFromMasked = (value: string) => {
   const digits = value.replace(/\D/g, "");
@@ -58,19 +72,24 @@ function keyOf(it: Item) {
   return (it.cardId ?? "").trim() || UNASSIGNED;
 }
 
+/* ---------------------------- Subcomponents -------------------------- */
+
 function CardPicker({
   value,
   cards,
   ensureCard,
   onSelect,
+  getCardColor,
 }: {
   value: string;
   cards: Array<{ id: string; name: string }>;
-  ensureCard: (name: string) => string | null;
+  ensureCard: (name: string, opts?: { color?: CardColorId }) => string | null;
   onSelect: (id: string) => void;
+  getCardColor: (id?: string) => CardColorId;
 }) {
   const [createMode, setCreateMode] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState<CardColorId>(DEFAULT_CARD_COLOR);
 
   const canCreate = newName.trim().length > 0;
 
@@ -95,11 +114,17 @@ function CardPicker({
         </SelectTrigger>
 
         <SelectContent align="start">
-          {cards.map((c) => (
-            <SelectItem key={c.id} value={c.id}>
-              {c.name}
-            </SelectItem>
-          ))}
+          {cards.map((c) => {
+            const preset = CARD_COLOR_BY_ID[getCardColor(c.id)];
+            return (
+              <SelectItem key={c.id} value={c.id}>
+                <div className="flex items-center gap-2">
+                  <span className={cn("size-2.5 rounded-full", preset.dot)} />
+                  <span>{c.name}</span>
+                </div>
+              </SelectItem>
+            );
+          })}
 
           <SelectSeparator />
           <SelectItem value={CREATE_CARD}>Adicionar novo cartão</SelectItem>
@@ -107,35 +132,55 @@ function CardPicker({
       </Select>
 
       {createMode && (
-        <div className="flex items-center gap-2">
+        <div className="space-y-3 rounded-xl border bg-muted/10 p-3">
           <Input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Novo cartão"
+            placeholder="Nome do cartão"
           />
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={!canCreate}
-            onClick={() => {
-              const id = ensureCard(newName.trim());
-              if (!id) return;
-              onSelect(id);
-              setNewName("");
-              setCreateMode(false);
-            }}
-          >
-            Adicionar
-          </Button>
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              Cor do cartão
+            </p>
+            <ColorSwatchPicker value={newColor} onChange={setNewColor} />
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={!canCreate}
+              onClick={() => {
+                const id = ensureCard(newName.trim(), { color: newColor });
+                if (!id) return;
+
+                onSelect(id);
+                setNewName("");
+                setNewColor(DEFAULT_CARD_COLOR);
+                setCreateMode(false);
+              }}
+            >
+              Adicionar
+            </Button>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
+/* ------------------------------ Main Card ---------------------------- */
+
 export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
   const ui = BUDGET_UI.expense;
-  const { creditCards, ensureCreditCard, getCreditCardName } = useBudgetStore();
+
+  const {
+    creditCards,
+    ensureCreditCard,
+    getCreditCardName,
+    getCreditCardColor,
+  } = useBudgetStore();
 
   const catRef = useRef<HTMLInputElement | null>(null);
   const amountRef = useRef<HTMLInputElement | null>(null);
@@ -144,43 +189,49 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [focusField, setFocusField] = useState<"cat" | "amount">("cat");
 
-  // ✅ simples: true = expandido, default (undefined/false) = recolhido
+  // true = expandido; undefined/false = recolhido
   const [expandedByCard, setExpandedByCard] = useState<Record<string, boolean>>(
     {},
   );
 
-  // ✅ para "+" do cartão: cria gasto e já seta cardId automaticamente
+  // "+" do cartão cria gasto e seta o cardId automaticamente
   const [pendingAssignCardId, setPendingAssignCardId] = useState<string | null>(
     null,
   );
+
+  const lastItem = items[items.length - 1];
+  const lastItemId = lastItem?.id;
 
   const total = useMemo(
     () => items.reduce((sum, it) => sum + parseMoneyBR(it.amount), 0),
     [items],
   );
 
-  const last = items.at(-1);
-  const lastCardOk = ((last?.cardId ?? "") as string).trim().length > 0;
+  const lastCardOk = ((lastItem?.cardId ?? "") as string).trim().length > 0;
 
   const canAdd =
-    !last ||
-    ((last.category ?? "").trim().length > 0 &&
-      toCentsFromMasked(last.amount) > 0 &&
+    !lastItem ||
+    ((lastItem.category ?? "").trim().length > 0 &&
+      toCentsFromMasked(lastItem.amount) > 0 &&
       lastCardOk);
 
   const editingItem = useMemo(() => {
     if (!editingId) return null;
-    const id = editingId === EDIT_LAST ? items.at(-1)?.id : editingId;
+
+    const id = editingId === EDIT_LAST ? lastItemId : editingId;
     if (!id) return null;
+
     return items.find((x) => x.id === id) ?? null;
-  }, [editingId, items]);
+  }, [editingId, items, lastItemId]);
 
   const editingGroupKey = useMemo(() => {
     if (!editingId) return null;
+
     const it =
-      editingItem ?? (editingId === EDIT_LAST ? (items.at(-1) ?? null) : null);
+      editingItem ?? (editingId === EDIT_LAST ? (lastItem ?? null) : null);
+
     return it ? keyOf(it) : null;
-  }, [editingId, editingItem, items]);
+  }, [editingId, editingItem, lastItem]);
 
   const tryAutoRemove = (it: Item) => {
     const emptyCat = (it.category ?? "").trim().length === 0;
@@ -189,34 +240,38 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
     if (emptyCat && emptyAmount && emptyCard) onRemove(it.id);
   };
 
+  const openEditor = (id: string, focus: "cat" | "amount") => {
+    setEditingId(id);
+    setFocusField(focus);
+  };
+
   const addNew = () => {
     if (!canAdd) return;
+
     setPendingAssignCardId(null);
     onAdd();
-    setEditingId(EDIT_LAST);
-    setFocusField("cat");
+    openEditor(EDIT_LAST, "cat");
   };
 
   const addForCard = (cardId: string) => {
     if (!canAdd) return;
+
     setPendingAssignCardId(cardId);
     onAdd();
-    setEditingId(EDIT_LAST);
-    setFocusField("cat");
+    openEditor(EDIT_LAST, "cat");
   };
 
-  // ✅ aplica o cardId automaticamente na NOVA linha (vinda do "+" do cartão)
+  // aplica o cardId automaticamente na NOVA linha (vinda do "+" do cartão)
   useEffect(() => {
     if (!pendingAssignCardId) return;
-    const last = items.at(-1);
-    if (!last) return;
+    if (!lastItem) return;
 
-    if (!(last.cardId ?? "").trim()) {
-      onChange(last.id, { cardId: pendingAssignCardId });
+    if (!(lastItem.cardId ?? "").trim()) {
+      onChange(lastItem.id, { cardId: pendingAssignCardId });
     }
 
     setPendingAssignCardId(null);
-  }, [pendingAssignCardId, items, onChange]);
+  }, [pendingAssignCardId, lastItem, onChange]);
 
   // fecha edição ao clicar fora (sem fechar ao interagir com o Select Portal)
   useEffect(() => {
@@ -242,10 +297,12 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
   // foco automático
   useEffect(() => {
     if (!editingId) return;
+
     const t = window.setTimeout(() => {
       if (focusField === "amount") amountRef.current?.focus();
       else catRef.current?.focus();
     }, 0);
+
     return () => window.clearTimeout(t);
   }, [editingId, focusField, items.length]);
 
@@ -282,13 +339,12 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
 
   const renderRow = (it: Item) => {
     const isEditing =
-      editingId === it.id ||
-      (editingId === EDIT_LAST && it.id === items.at(-1)?.id);
+      editingId === it.id || (editingId === EDIT_LAST && it.id === lastItemId);
 
     if (isEditing) {
       const effectiveCardId =
         (it.cardId ?? "").trim() ||
-        (it.id === items.at(-1)?.id ? (pendingAssignCardId ?? "") : "");
+        (it.id === lastItemId ? (pendingAssignCardId ?? "") : "");
 
       return (
         <div
@@ -304,6 +360,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
               value={effectiveCardId}
               cards={creditCards}
               ensureCard={ensureCreditCard}
+              getCardColor={getCreditCardColor}
               onSelect={(id) => onChange(it.id, { cardId: id })}
             />
 
@@ -359,8 +416,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
           const clickedAmount = !!(e.target as HTMLElement).closest(
             '[data-field="amount"]',
           );
-          setEditingId(it.id);
-          setFocusField(clickedAmount ? "amount" : "cat");
+          openEditor(it.id, clickedAmount ? "amount" : "cat");
         }}
       >
         <div className="flex items-center justify-between gap-3">
@@ -431,9 +487,15 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
         {groups.map((g) => {
           const count = g.items.length;
 
-          // ✅ regra nova: sempre começa recolhido
           const forceExpanded = editingGroupKey === g.cardId;
           const expanded = forceExpanded || expandedByCard[g.cardId] === true;
+
+          const colorId =
+            g.cardId === UNASSIGNED
+              ? DEFAULT_CARD_COLOR
+              : getCreditCardColor(g.cardId);
+
+          const preset = CARD_COLOR_BY_ID[colorId];
 
           const header = (
             <div
@@ -458,8 +520,20 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className="h-8 w-0.5 shrink-0 rounded-full bg-primary/40" />
-                  <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-background/60 ring-1 ring-border">
+                  <span
+                    className={cn(
+                      "h-8 w-0.5 shrink-0 rounded-full",
+                      preset.bar,
+                    )}
+                  />
+
+                  <span
+                    className={cn(
+                      "grid size-8 shrink-0 place-items-center rounded-lg ring-1 ring-border",
+                      "bg-background/60",
+                      preset.soft,
+                    )}
+                  >
                     <CreditCard className="size-4 text-muted-foreground" />
                   </span>
 

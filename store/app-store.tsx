@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  CardColorId,
+  normalizeCardColorId,
+} from "@/components/budget/budget.card-colors";
 import React, {
   createContext,
   useContext,
@@ -53,12 +57,13 @@ export type CreditCard = {
   id: string;
   name: string;
   createdAt: number;
+  color?: CardColorId;
 };
 
 export type BudgetData = {
   selectedMonthKey?: string; // "YYYY-MM"
   months: Record<string, BudgetMonthData>;
-  creditCards?: CreditCard[]; // novo
+  creditCards?: CreditCard[];
 };
 
 export type FixedIncomeItem = {
@@ -309,6 +314,7 @@ function safeParse(raw: string | null): AppData | null {
           id: str(row["id"]) || `cc-${idx + 1}`,
           name: str(row["name"]),
           createdAt: num(row["createdAt"]),
+          color: normalizeCardColorId(row["color"]),
         };
       })
       .filter((c) => c.name.trim().length > 0);
