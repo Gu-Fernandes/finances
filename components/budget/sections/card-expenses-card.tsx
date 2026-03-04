@@ -72,6 +72,8 @@ function CardPicker({
   const [createMode, setCreateMode] = useState(false);
   const [newName, setNewName] = useState("");
 
+  const canCreate = newName.trim().length > 0;
+
   return (
     <div className="space-y-2">
       <Select
@@ -109,13 +111,14 @@ function CardPicker({
           <Input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Novo cartão (ex: Nubank)"
+            placeholder="Novo cartão"
           />
           <Button
             type="button"
             variant="secondary"
+            disabled={!canCreate}
             onClick={() => {
-              const id = ensureCard(newName);
+              const id = ensureCard(newName.trim());
               if (!id) return;
               onSelect(id);
               setNewName("");
@@ -141,19 +144,15 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [focusField, setFocusField] = useState<"cat" | "amount">("cat");
 
-  // expandedByCard: true = expandido, false = recolhido
+  // ✅ simples: true = expandido, default (undefined/false) = recolhido
   const [expandedByCard, setExpandedByCard] = useState<Record<string, boolean>>(
     {},
   );
 
-  // ✅ usado para "+" do cartão: cria o gasto e já seta o cardId automaticamente
+  // ✅ para "+" do cartão: cria gasto e já seta cardId automaticamente
   const [pendingAssignCardId, setPendingAssignCardId] = useState<string | null>(
     null,
   );
-
-  // ✅ auto-colapso quando cruza 2 -> 3
-  const prevCountsRef = useRef<Record<string, number>>({});
-  const collapsePendingRef = useRef<Set<string>>(new Set());
 
   const total = useMemo(
     () => items.reduce((sum, it) => sum + parseMoneyBR(it.amount), 0),
@@ -192,11 +191,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
 
   const addNew = () => {
     if (!canAdd) return;
-
-    // garante que o item novo apareça mesmo se "Sem cartão" estiver recolhido
-    setExpandedByCard((p) => ({ ...p, [UNASSIGNED]: true }));
-
-    setPendingAssignCardId(null); // topo: pede cartão
+    setPendingAssignCardId(null);
     onAdd();
     setEditingId(EDIT_LAST);
     setFocusField("cat");
@@ -204,11 +199,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
 
   const addForCard = (cardId: string) => {
     if (!canAdd) return;
-
-    // abre para editar
-    setExpandedByCard((p) => ({ ...p, [cardId]: true }));
-
-    setPendingAssignCardId(cardId); // ✅ aplica automaticamente na linha nova
+    setPendingAssignCardId(cardId);
     onAdd();
     setEditingId(EDIT_LAST);
     setFocusField("cat");
@@ -217,7 +208,6 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
   // ✅ aplica o cardId automaticamente na NOVA linha (vinda do "+" do cartão)
   useEffect(() => {
     if (!pendingAssignCardId) return;
-
     const last = items.at(-1);
     if (!last) return;
 
@@ -226,68 +216,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
     }
 
     setPendingAssignCardId(null);
-  }, [pendingAssignCardId, items.length, onChange, items]);
-
-  // ✅ detecta cruzamento 2 -> 3 e recolhe automaticamente
-  useEffect(() => {
-    const counts: Record<string, number> = {};
-    for (const it of items) {
-      const k = keyOf(it);
-      counts[k] = (counts[k] ?? 0) + 1;
-    }
-
-    const prev = prevCountsRef.current;
-    const crossed: string[] = [];
-
-    for (const [k, c] of Object.entries(counts)) {
-      const p = prev[k] ?? 0;
-      if (p < 3 && c >= 3) crossed.push(k);
-    }
-
-    prevCountsRef.current = counts;
-
-    if (!crossed.length) return;
-
-    // se estiver editando, não recolhe agora (senão some o form)
-    if (editingId) {
-      crossed.forEach((k) => collapsePendingRef.current.add(k));
-      return;
-    }
-
-    setExpandedByCard((p) => {
-      let changed = false;
-      const next = { ...p };
-      for (const k of crossed) {
-        if (next[k] !== false) {
-          next[k] = false;
-          changed = true;
-        }
-      }
-      return changed ? next : p;
-    });
-  }, [items, editingId]);
-
-  // ✅ se cruzou enquanto editava, recolhe assim que sair da edição
-  useEffect(() => {
-    if (editingId) return;
-
-    const pending = Array.from(collapsePendingRef.current);
-    if (!pending.length) return;
-
-    collapsePendingRef.current.clear();
-
-    setExpandedByCard((p) => {
-      let changed = false;
-      const next = { ...p };
-      for (const k of pending) {
-        if (next[k] !== false) {
-          next[k] = false;
-          changed = true;
-        }
-      }
-      return changed ? next : p;
-    });
-  }, [editingId]);
+  }, [pendingAssignCardId, items, onChange]);
 
   // fecha edição ao clicar fora (sem fechar ao interagir com o Select Portal)
   useEffect(() => {
@@ -322,6 +251,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
 
   const groups = useMemo(() => {
     const map = new Map<string, Item[]>();
+
     for (const it of items) {
       const k = keyOf(it);
       const arr = map.get(k) ?? [];
@@ -345,6 +275,10 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
 
     return list;
   }, [items, creditCards, getCreditCardName]);
+
+  const toggleGroup = (cardId: string) => {
+    setExpandedByCard((p) => ({ ...p, [cardId]: !(p[cardId] ?? false) }));
+  };
 
   const renderRow = (it: Item) => {
     const isEditing =
@@ -379,7 +313,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
                 className="font-medium"
                 value={it.category}
                 onChange={(e) => onChange(it.id, { category: e.target.value })}
-                placeholder="Categoria"
+                placeholder="Descrição"
               />
 
               <MoneyInput
@@ -497,44 +431,34 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
         {groups.map((g) => {
           const count = g.items.length;
 
-          // ✅ regra nova: a partir de 3, começa recolhido
-          const showToggle = count >= 3;
-          const defaultCollapsed = showToggle;
-
-          // ✅ durante edição, força expandir o grupo do item editado
+          // ✅ regra nova: sempre começa recolhido
           const forceExpanded = editingGroupKey === g.cardId;
-
-          const expanded =
-            forceExpanded || (expandedByCard[g.cardId] ?? !defaultCollapsed);
+          const expanded = forceExpanded || expandedByCard[g.cardId] === true;
 
           const header = (
             <div
-              role={showToggle ? "button" : undefined}
-              tabIndex={showToggle ? 0 : undefined}
+              role="button"
+              tabIndex={0}
               className={cn(
                 "w-full rounded-xl border p-3 text-left transition",
                 "bg-muted/10 hover:bg-muted/20",
                 "shadow-none",
               )}
               onClick={() => {
-                if (!showToggle) return;
-                setExpandedByCard((p) => ({ ...p, [g.cardId]: !expanded }));
+                if (forceExpanded) return;
+                toggleGroup(g.cardId);
               }}
               onKeyDown={(e) => {
-                if (!showToggle) return;
+                if (forceExpanded) return;
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  setExpandedByCard((p) => ({ ...p, [g.cardId]: !expanded }));
+                  toggleGroup(g.cardId);
                 }
               }}
             >
               <div className="flex items-center justify-between gap-3">
-                {/* Left */}
                 <div className="flex min-w-0 items-center gap-2">
-                  {/* acento mais fino */}
                   <span className="h-8 w-0.5 shrink-0 rounded-full bg-primary/40" />
-
-                  {/* menos espaço */}
                   <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-background/60 ring-1 ring-border">
                     <CreditCard className="size-4 text-muted-foreground" />
                   </span>
@@ -549,7 +473,6 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
                   </div>
                 </div>
 
-                {/* Right */}
                 <div className="flex shrink-0 items-center gap-2 sm:gap-3">
                   <Badge
                     variant="outline"
@@ -572,12 +495,8 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
                       e.preventDefault();
                       e.stopPropagation();
 
-                      if (g.cardId === UNASSIGNED) {
-                        addNew();
-                        return;
-                      }
-
-                      addForCard(g.cardId);
+                      if (g.cardId === UNASSIGNED) addNew();
+                      else addForCard(g.cardId);
                     }}
                     disabled={!canAdd}
                   >
@@ -587,9 +506,8 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
               </div>
             </div>
           );
-          // recolhido: só mostra header
-          if (!expanded && showToggle)
-            return <div key={g.cardId}>{header}</div>;
+
+          if (!expanded) return <div key={g.cardId}>{header}</div>;
 
           return (
             <div key={g.cardId} className="space-y-2">
