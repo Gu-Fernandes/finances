@@ -36,10 +36,8 @@ function normalizeMoney(raw: string) {
 }
 
 export function InvestedCard({ amount, onChangeAmount }: Props) {
-  // mantém “investido” para gradiente/ícone
   const ui = BUDGET_UI.invested;
 
-  // usa “receitas” para os valores (verde)
   const moneyUi = BUDGET_UI.income;
 
   const total = useMemo(() => parseMoneyBR(amount), [amount]);
@@ -96,7 +94,6 @@ export function InvestedCard({ amount, onChangeAmount }: Props) {
           </div>
         </div>
 
-        {/* ✅ badge verde (igual Receitas) */}
         <div className="flex justify-center">
           <Badge variant="outline" className={cn(moneyUi.badgeOutline)}>
             {formatBRL(total)}
