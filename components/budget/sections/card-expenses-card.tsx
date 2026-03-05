@@ -82,7 +82,8 @@ function CardPicker({
   const [createMode, setCreateMode] = useState(false);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState<CardColorId>(DEFAULT_CARD_COLOR);
-
+  const selectValue = (value ?? "").trim() || UNASSIGNED;
+  const noneCc = CARD_COLOR_BY_ID[DEFAULT_CARD_COLOR];
   const canCreate = newName.trim().length > 0;
 
   const selectedId = (value ?? "").trim();
@@ -91,13 +92,20 @@ function CardPicker({
   return (
     <div className="space-y-2">
       <Select
-        value={value || undefined}
+        value={selectValue}
         onValueChange={(v) => {
           if (v === CREATE_CARD) {
             setCreateMode(true);
             setNewColor(DEFAULT_CARD_COLOR);
             return;
           }
+
+          if (v === UNASSIGNED) {
+            onSelect(""); // limpa cardId
+            setCreateMode(false);
+            return;
+          }
+
           onSelect(v);
           setCreateMode(false);
         }}
@@ -110,11 +118,26 @@ function CardPicker({
         </SelectTrigger>
 
         <SelectContent align="start">
-          {cards.map((c) => (
-            <SelectItem key={c.id} value={c.id}>
-              {c.name}
-            </SelectItem>
-          ))}
+          <SelectItem value={UNASSIGNED}>
+            <span className="flex items-center gap-2">
+              <span className={cn("size-2.5 rounded-full", noneCc.dot)} />
+              <span>Sem cartão</span>
+            </span>
+          </SelectItem>
+
+          <SelectSeparator />
+          {cards.map((c) => {
+            const cc = CARD_COLOR_BY_ID[getCardColor(c.id)];
+
+            return (
+              <SelectItem key={c.id} value={c.id}>
+                <span className="flex items-center gap-2">
+                  <span className={cn("size-2.5 rounded-full", cc.dot)} />
+                  <span>{c.name}</span>
+                </span>
+              </SelectItem>
+            );
+          })}
 
           <SelectSeparator />
           <SelectItem value={CREATE_CARD}>Adicionar novo cartão</SelectItem>
@@ -228,11 +251,13 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
     return it ? keyOf(it) : null;
   }, [editingId, editingItem, items]);
 
-  const tryAutoRemove = (it: Item) => {
-    const emptyCat = (it.category ?? "").trim().length === 0;
-    const emptyAmount = toCentsFromMasked(it.amount) === 0;
-    const emptyCard = (it.cardId ?? "").trim().length === 0;
-    if (emptyCat && emptyAmount && emptyCard) onRemove(it.id);
+  const isBlankExpense = (it: Item) =>
+    (it.category ?? "").trim().length === 0 &&
+    toCentsFromMasked(it.amount) === 0;
+
+  const cleanupBlank = (it: Item | null) => {
+    if (!it) return;
+    if (isBlankExpense(it)) onRemove(it.id);
   };
 
   const addNew = () => {
@@ -276,7 +301,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
       if (wrap && wrap.contains(target)) return;
       if (target.closest('[data-slot="select-content"]')) return;
 
-      if (editingItem) tryAutoRemove(editingItem);
+      cleanupBlank(editingItem);
       setEditingId(null);
     };
 
@@ -344,7 +369,10 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
           ref={editingWrapRef}
           className="rounded-xl border-b bg-background/50 p-3 shadow-sm"
           onKeyDown={(e) => {
-            if (e.key === "Escape") setEditingId(null);
+            if (e.key === "Escape") {
+              cleanupBlank(it);
+              setEditingId(null);
+            }
           }}
         >
           <div className="space-y-2">
@@ -409,6 +437,10 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
           const clickedAmount = !!(e.target as HTMLElement).closest(
             '[data-field="amount"]',
           );
+
+          if (editingItem && editingItem.id !== it.id)
+            cleanupBlank(editingItem);
+
           setEditingId(it.id);
           setFocusField(clickedAmount ? "amount" : "cat");
         }}
