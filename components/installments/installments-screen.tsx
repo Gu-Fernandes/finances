@@ -24,8 +24,6 @@ import { useInstallmentsStore } from "@/store/installments.store";
 import { AddInstallmentDialog } from "./add-installment-dialog";
 import { InstallmentPlanCard } from "./installment-plan-card";
 
-/* ----------------------------- helpers ----------------------------- */
-
 type PlanStatus = "overdue" | "ok" | "done";
 type FilterKey = "all" | PlanStatus;
 
@@ -108,13 +106,10 @@ function planMeta(plan: InstallmentPlan) {
 }
 
 function statusPriority(s: PlanStatus) {
-  // menor = vem primeiro
   if (s === "overdue") return 0;
   if (s === "ok") return 1;
   return 2; // done
 }
-
-/* ----------------------------- UI bits ----------------------------- */
 
 function Chip({
   active,
@@ -236,8 +231,6 @@ function Dots({
   );
 }
 
-/* ----------------------------- dashboard ----------------------------- */
-
 function InstallmentsDashboard({
   plans,
   filter,
@@ -268,7 +261,6 @@ function InstallmentsDashboard({
 
       if (m.status === "overdue") {
         overdue += 1;
-        // soma do plano em aberto (não só uma parcela) dá “peso” financeiro real
         overdueCents += m.remainingCents;
       } else if (m.status === "done") done += 1;
       else ok += 1;
@@ -276,7 +268,6 @@ function InstallmentsDashboard({
       monthlyCents += m.monthlyCents;
       remainingCents += m.remainingCents;
 
-      // próximo vencimento global (entre qualquer parcela em aberto)
       if (m.status !== "done" && m.nextDue) {
         const d = startOfDayLocal(m.nextDue);
         if (!nextDue || d.getTime() < startOfDayLocal(nextDue).getTime()) {
@@ -304,7 +295,6 @@ function InstallmentsDashboard({
   return (
     <Card className="bg-background/60 backdrop-blur">
       <CardContent className="space-y-4 p-4">
-        {/* Top metrics */}
         <div className="grid gap-4 sm:grid-cols-3">
           <StatLine
             label="Contas parceladas"
@@ -322,11 +312,10 @@ function InstallmentsDashboard({
             label="Restante total"
             value={formatBRLFromCents(dash.remainingCents)}
             Icon={Wallet}
-            valueClassName="text-primary"
+            valueClassName="text-yellow-400"
           />
         </div>
 
-        {/* Secondary row: next due + overdue */}
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex items-center justify-between rounded-xl border bg-muted/10 p-3">
             <div className="min-w-0">
@@ -363,7 +352,6 @@ function InstallmentsDashboard({
           </div>
         </div>
 
-        {/* Filters + Search */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-2">
             <Chip active={filter === "all"} onClick={() => onFilter("all")}>
@@ -404,8 +392,6 @@ function InstallmentsDashboard({
   );
 }
 
-/* ----------------------------- screen ----------------------------- */
-
 export function InstallmentsScreen() {
   const plans = useInstallmentsStore((s) => s.plans);
 
@@ -431,12 +417,10 @@ export function InstallmentsScreen() {
         return (plan.name ?? "").toLowerCase().includes(q);
       })
       .sort((a, b) => {
-        // prioridade: overdue -> ok -> done
         const pa = statusPriority(a.meta.status);
         const pb = statusPriority(b.meta.status);
         if (pa !== pb) return pa - pb;
 
-        // dentro da categoria: por próximo vencimento (null por último)
         const da = a.meta.nextDue
           ? startOfDayLocal(a.meta.nextDue).getTime()
           : Number.POSITIVE_INFINITY;
@@ -445,7 +429,6 @@ export function InstallmentsScreen() {
           : Number.POSITIVE_INFINITY;
         if (da !== db) return da - db;
 
-        // fallback estável
         return (a.plan.name ?? "").localeCompare(b.plan.name ?? "");
       });
 
@@ -520,7 +503,6 @@ export function InstallmentsScreen() {
     [computeActiveIndex],
   );
 
-  // ao adicionar novo plano: se estiver em "Todos" e sem busca, rola pro fim
   const prevLenRef = useRef(plans.length);
   useEffect(() => {
     if (plans.length > prevLenRef.current) {
@@ -555,7 +537,6 @@ export function InstallmentsScreen() {
 
   return (
     <div className="space-y-4">
-      {/* Dashboard + CTA */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <InstallmentsDashboard
@@ -579,7 +560,6 @@ export function InstallmentsScreen() {
         <NoResults onClear={clearFilters} />
       ) : (
         <>
-          {/* full-bleed no mobile */}
           <div className="-mx-4 sm:mx-0">
             <div
               ref={viewportRef}
