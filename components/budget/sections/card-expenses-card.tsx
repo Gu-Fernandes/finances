@@ -21,6 +21,12 @@ import { cn } from "@/lib/utils";
 import { useBudgetStore } from "@/store/budget.store";
 import { formatBRL, parseMoneyBR } from "../budget.constants";
 import { BUDGET_UI } from "../budget.ui";
+import {
+  CARD_COLOR_BY_ID,
+  CardColorId,
+  DEFAULT_CARD_COLOR,
+} from "../budget.card-colors";
+import { ColorSwatchPicker } from "../color-swatch-picker";
 
 type Item = {
   id: string;
@@ -62,17 +68,25 @@ function CardPicker({
   value,
   cards,
   ensureCard,
+  getCardColor,
+  setCardColor,
   onSelect,
 }: {
   value: string;
   cards: Array<{ id: string; name: string }>;
-  ensureCard: (name: string) => string | null;
+  ensureCard: (name: string, opts?: { color?: CardColorId }) => string | null;
+  getCardColor: (id?: string) => CardColorId;
+  setCardColor: (id: string, color: CardColorId) => void;
   onSelect: (id: string) => void;
 }) {
   const [createMode, setCreateMode] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState<CardColorId>(DEFAULT_CARD_COLOR);
 
   const canCreate = newName.trim().length > 0;
+
+  const selectedId = (value ?? "").trim();
+  const hasSelectedCard = selectedId.length > 0;
 
   return (
     <div className="space-y-2">
@@ -81,6 +95,7 @@ function CardPicker({
         onValueChange={(v) => {
           if (v === CREATE_CARD) {
             setCreateMode(true);
+            setNewColor(DEFAULT_CARD_COLOR);
             return;
           }
           onSelect(v);
@@ -106,27 +121,52 @@ function CardPicker({
         </SelectContent>
       </Select>
 
+      {/* Criar cartão + escolher cor */}
       {createMode && (
-        <div className="flex items-center gap-2">
-          <Input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Novo cartão"
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Novo cartão"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={!canCreate}
+              onClick={() => {
+                const id = ensureCard(newName.trim(), { color: newColor });
+                if (!id) return;
+                onSelect(id);
+                setNewName("");
+                setCreateMode(false);
+              }}
+            >
+              Adicionar
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">Cor do cartão</p>
+          </div>
+
+          <ColorSwatchPicker
+            value={newColor}
+            onChange={setNewColor}
+            size="sm"
           />
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={!canCreate}
-            onClick={() => {
-              const id = ensureCard(newName.trim());
-              if (!id) return;
-              onSelect(id);
-              setNewName("");
-              setCreateMode(false);
-            }}
-          >
-            Adicionar
-          </Button>
+        </div>
+      )}
+
+      {/* Editar cor do cartão selecionado */}
+      {!createMode && hasSelectedCard && (
+        <div className="space-y-1.5">
+          <p className="text-xs text-muted-foreground">Cor do cartão</p>
+          <ColorSwatchPicker
+            value={getCardColor(selectedId)}
+            onChange={(c) => setCardColor(selectedId, c)}
+            size="sm"
+          />
         </div>
       )}
     </div>
@@ -135,7 +175,13 @@ function CardPicker({
 
 export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
   const ui = BUDGET_UI.expense;
-  const { creditCards, ensureCreditCard, getCreditCardName } = useBudgetStore();
+  const {
+    creditCards,
+    ensureCreditCard,
+    getCreditCardName,
+    getCreditCardColor,
+    setCreditCardColor,
+  } = useBudgetStore();
 
   const catRef = useRef<HTMLInputElement | null>(null);
   const amountRef = useRef<HTMLInputElement | null>(null);
@@ -265,6 +311,8 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
         cardId === UNASSIGNED
           ? "Sem cartão"
           : getCreditCardName(cardId) || "Cartão",
+      colorId:
+        cardId === UNASSIGNED ? DEFAULT_CARD_COLOR : getCreditCardColor(cardId),
       items: list,
       total: list.reduce((s, it) => s + parseMoneyBR(it.amount), 0),
     }));
@@ -274,7 +322,7 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
     );
 
     return list;
-  }, [items, creditCards, getCreditCardName]);
+  }, [items, creditCards, getCreditCardName, getCreditCardColor]);
 
   const toggleGroup = (cardId: string) => {
     setExpandedByCard((p) => ({ ...p, [cardId]: !(p[cardId] ?? false) }));
@@ -304,6 +352,8 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
               value={effectiveCardId}
               cards={creditCards}
               ensureCard={ensureCreditCard}
+              getCardColor={getCreditCardColor}
+              setCardColor={setCreditCardColor}
               onSelect={(id) => onChange(it.id, { cardId: id })}
             />
 
@@ -430,8 +480,8 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
       <CardContent className="relative space-y-3 pb-4">
         {groups.map((g) => {
           const count = g.items.length;
+          const cc = CARD_COLOR_BY_ID[g.colorId];
 
-          // ✅ regra nova: sempre começa recolhido
           const forceExpanded = editingGroupKey === g.cardId;
           const expanded = forceExpanded || expandedByCard[g.cardId] === true;
 
@@ -458,9 +508,17 @@ export function CardExpensesCard({ items, onAdd, onChange, onRemove }: Props) {
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className="h-8 w-0.5 shrink-0 rounded-full bg-primary/40" />
-                  <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-background/60 ring-1 ring-border">
-                    <CreditCard className="size-4 text-muted-foreground" />
+                  <span
+                    className={cn("h-8 w-0.5 shrink-0 rounded-full", cc.bar)}
+                  />
+
+                  <span
+                    className={cn(
+                      "grid size-8 shrink-0 place-items-center rounded-lg ring-1 ring-border",
+                      cc.soft,
+                    )}
+                  >
+                    <CreditCard className={cn("size-4", cc.icon)} />
                   </span>
 
                   <div className="min-w-0">
